@@ -179,6 +179,65 @@ class RemoteSourcesTests(unittest.TestCase):
             with self.subTest(data=data), self.assertRaises(ValueError):
                 remote.parse_snapshot("remoteok", json.dumps(data))
 
+    def test_remoteok_index_only_row_keeps_id_text_and_count_with_explicit_url_gate(self):
+        rows = [remoteok_row(identifier) for identifier in range(100001, 100122)]
+        index_row = rows[70]
+        index_row["url"] = "https://remoteOK.com/remote-jobs/"
+        index_row["description"] = "<p>" + "Complete synthetic source text. " * 150 + "</p>"
+        body = json.dumps([{"legal": "Synthetic terms"}, *rows])
+        fetched = []
+
+        def fetch(url):
+            fetched.append(url)
+            return body
+
+        result = remote.query("remoteok", fetch=fetch)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["returned_count"], 121)
+        self.assertEqual(fetched, [remote.endpoint("remoteok")])
+        listing = result["listings"][70]
+        self.assertEqual(listing["id"], index_row["id"])
+        self.assertEqual(listing["description"], index_row["description"])
+        self.assertGreater(len(listing["description"]), 2500)
+        self.assertEqual(listing["source_data"], index_row)
+        self.assertIsNone(listing["url"])
+        self.assertEqual(listing["gates"], ["canonical_posting_url_missing"])
+        self.assertEqual(listing["url_basis"], "source_index_only_not_exact_posting")
+        self.assertEqual(listing["attribution"]["link_scope"], "source_index")
+        self.assertEqual(listing["attribution"]["url"], index_row["url"])
+        self.assertTrue(all(item["url"] for i, item in enumerate(result["listings"]) if i != 70))
+        self.assertFalse(result["coverage_complete"])
+        self.assertFalse(result["reviewed_by_model"])
+
+    def test_workingnomads_native_redirect_links_are_data_and_never_followed(self):
+        rows = [
+            {
+                "url": f"https://www.workingnomads.com/job/go/{identifier}/",
+                "title": "Synthetic opportunity",
+                "description": "<p>" + "Complete source text. " * 150 + "</p>",
+                "apply_url": "https://example.invalid/apply?reference=synthetic",
+            }
+            for identifier in range(100001, 100004)
+        ]
+        fetched = []
+
+        def fetch(url):
+            fetched.append(url)
+            return json.dumps(rows)
+
+        result = remote.query("workingnomads", fetch=fetch)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["returned_count"], 3)
+        self.assertEqual(fetched, [remote.endpoint("workingnomads")])
+        for row, listing in zip(rows, result["listings"]):
+            self.assertEqual(listing["id"], row["url"])
+            self.assertEqual(listing["url"], row["url"])
+            self.assertEqual(listing["description"], row["description"])
+            self.assertGreater(len(listing["description"]), 2500)
+            self.assertEqual(listing["source_data"], row)
+            self.assertEqual(listing["url_basis"], "source_native_redirect_link_not_resolved")
+            self.assertEqual(listing["attribution"]["link_scope"], "source_redirect")
+
     def test_workingnomads_url_is_identity_and_exposed_subset_is_explicit(self):
         row = {
             "url": "https://www.workingnomads.com/jobs/synthetic-100",
@@ -243,6 +302,82 @@ class RemoteSourcesTests(unittest.TestCase):
         self.assertEqual(result["reported_total"], 21)
         terminal = remote.parse_snapshot("himalayas_global", himalayas_feed(None), "prior")
         self.assertFalse(terminal["has_more"])
+
+    def test_himalayas_company_job_paths_preserve_every_guid_and_full_text(self):
+        data = json.loads(himalayas_feed())
+        template = data["jobs"][0]
+        data["jobs"] = [
+            {
+                **template,
+                "guid": f"https://himalayas.app/companies/example-company/jobs/synthetic-{i}",
+                "description": "<p>" + "Complete source text. " * 150 + "</p>",
+            }
+            for i in range(100001, 100021)
+        ]
+        fetched = []
+
+        def fetch(url):
+            fetched.append(url)
+            return json.dumps(data)
+
+        result = remote.query("himalayas_global", fetch=fetch)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["returned_count"], 20)
+        self.assertEqual(fetched, [remote.endpoint("himalayas_global")])
+        self.assertEqual(result["next_cursor"], data["nextCursor"])
+        self.assertTrue(result["has_more"])
+        for row, listing in zip(data["jobs"], result["listings"]):
+            self.assertEqual(listing["id"], row["guid"])
+            self.assertEqual(listing["url"], row["guid"])
+            self.assertEqual(listing["description"], row["description"])
+            self.assertGreater(len(listing["description"]), 2500)
+            self.assertEqual(listing["source_data"], row)
+
+    def test_new_native_listing_paths_do_not_admit_malformed_or_unsafe_urls(self):
+        invalid = {
+            "workingnomads": [
+                "https://www.workingnomads.com/job/go/",
+                "https://www.workingnomads.com/job/go/not-an-id/",
+                "https://www.workingnomads.com/job/go/100001/extra",
+                "https://www.workingnomads.com/job/go/../account/",
+                "https://www.workingnomads.com/job/go/100001%2F/",
+            ],
+            "himalayas_global": [
+                "https://himalayas.app/companies/example/jobs/",
+                "https://himalayas.app/companies//jobs/synthetic-100",
+                "https://himalayas.app/companies/example/jobs/synthetic-100/extra",
+                "https://himalayas.app/companies/../jobs/synthetic-100",
+                "https://himalayas.app/companies/example%2Faccount/jobs/synthetic-100",
+            ],
+            "remoteok": [
+                "https://remoteOK.com/remote-jobs",
+                "https://remoteOK.com/remote-jobs//",
+                "https://remoteOK.com/remote-jobs/../account",
+                "https://remoteOK.com/remote-jobs/synthetic%2Faccount",
+            ],
+        }
+        examples = {
+            "workingnomads": "https://www.workingnomads.com/job/go/100001/",
+            "himalayas_global": "https://himalayas.app/companies/example/jobs/synthetic-100",
+            "remoteok": "https://remoteOK.com/remote-jobs/",
+        }
+        for source, safe in examples.items():
+            host = urlsplit(safe).netloc
+            invalid[source].extend(
+                [
+                    safe.replace(host, "evil.invalid"),
+                    safe.replace(host, "user:password@" + host),
+                    safe.replace(host, host + ":443"),
+                    safe.replace("https:", "http:"),
+                    safe + "?token=synthetic-secret",
+                    safe + "#fragment",
+                    safe + "\n",
+                    safe + "\x7f",
+                ]
+            )
+            for url in invalid[source]:
+                with self.subTest(source=source, url=url), self.assertRaises(ValueError):
+                    remote._listing_url(url, source)
 
     def test_himalayas_missing_stalled_invalid_cursor_and_bad_counts_fail(self):
         data = json.loads(himalayas_feed())

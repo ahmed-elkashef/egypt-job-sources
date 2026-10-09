@@ -163,3 +163,7 @@ python -m build
 ```
 
 CI runs offline parser and boundary tests on Python 3.11, 3.12, and 3.13. See [CONTRIBUTING.md](CONTRIBUTING.md) for safe bug reports and fixtures.
+
+### Source-provided job links
+
+Remote feed descriptions are preserved independently of link completeness. Working Nomads may supply its native numeric `/job/go/` redirect link, which is retained without fetching its outbound destination. Himalayas may identify postings through `/companies/{company}/jobs/{posting}`. A Remote OK record that supplies only the generic board index keeps its stable ID and full text but has no exact posting URL; its explicit gate must be resolved before treating it as a verified application opportunity. Attribution to a source index is labeled separately. Foreign, credential-bearing, queried, fragmented and malformed links remain invalid.

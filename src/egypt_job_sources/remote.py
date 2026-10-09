@@ -177,9 +177,9 @@ def _identity(value) -> str:
     return _string(str(value), "source identifier")
 
 
-def _listing_url(value, source: str) -> str:
+def _listing_url(value, source: str) -> str | None:
     value = _string(value, "canonical source URL")
-    if any(ord(character) < 33 for character in value):
+    if any(ord(character) < 33 or ord(character) == 127 for character in value):
         raise ValueError("Invalid canonical source URL")
     parts = urlsplit(value)
     hosts = {
@@ -189,7 +189,6 @@ def _listing_url(value, source: str) -> str:
         "workingnomads": {"workingnomads.com", "www.workingnomads.com"},
         "himalayas_global": {"himalayas.app"},
     }
-    prefix = "/jobs/" if source in {"workingnomads", "himalayas_global"} else "/remote-jobs/"
     if (
         parts.scheme != "https"
         or parts.hostname not in hosts[source]
@@ -198,9 +197,26 @@ def _listing_url(value, source: str) -> str:
         or parts.port is not None
         or parts.fragment
         or parts.query
-        or not parts.path.startswith(prefix)
-        or parts.path == prefix
     ):
+        raise ValueError("Invalid canonical source URL")
+    # A Remote OK item can carry only the source index, despite retaining its
+    # native ID and description. Preserve that item without inventing a detail.
+    if source == "remoteok" and parts.path == "/remote-jobs/":
+        return None
+    prefix = "/jobs/" if source in {"workingnomads", "himalayas_global"} else "/remote-jobs/"
+    valid_path = parts.path.startswith(prefix) and parts.path != prefix
+    slug = r"[A-Za-z0-9][A-Za-z0-9_-]*"
+    if source == "remoteok":
+        valid_path = re.fullmatch(rf"/remote-jobs/{slug}/?", parts.path) is not None
+    if source == "workingnomads":
+        # Official exposed_jobs returns these native redirect links. Retain the
+        # link as data; the feed reader never resolves it or fetches applications.
+        valid_path = re.fullmatch(rf"/jobs/{slug}/?", parts.path) is not None
+        valid_path |= re.fullmatch(r"/job/go/[1-9][0-9]*/", parts.path) is not None
+    elif source == "himalayas_global":
+        valid_path = re.fullmatch(rf"/jobs/{slug}/?", parts.path) is not None
+        valid_path |= re.fullmatch(rf"/companies/{slug}/jobs/{slug}/?", parts.path) is not None
+    if not valid_path:
         raise ValueError("Invalid canonical source URL")
     return value
 
@@ -209,13 +225,25 @@ def _listing(row: dict, source: str, *, identity, url, title, description) -> di
     if not isinstance(row, dict):
         raise ValueError("Invalid feed item")
     canonical = _listing_url(url, source)
+    link_scope = "source_posting"
+    url_basis = "source_native_posting_link"
+    if canonical is None:
+        link_scope, url_basis = "source_index", "source_index_only_not_exact_posting"
+    elif source == "workingnomads" and urlsplit(canonical).path.startswith("/job/go/"):
+        link_scope, url_basis = "source_redirect", "source_native_redirect_link_not_resolved"
     return {
         "id": _identity(identity),
         "url": canonical,
+        "url_basis": url_basis,
+        "gates": ["canonical_posting_url_missing"] if canonical is None else [],
         "title": _string(title, "title"),
         "description": _string(description, "source description"),
         "source": source,
-        "attribution": {"source": SOURCE_NAMES[source], "url": canonical},
+        "attribution": {
+            "source": SOURCE_NAMES[source],
+            "url": url if canonical is None else canonical,
+            "link_scope": link_scope,
+        },
         "source_data": row,
         "description_basis": (
             "source_full_html_field_not_independently_reviewed"

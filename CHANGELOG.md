@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-10-10
+
+- Accept verified native Working Nomads numeric redirect links and Himalayas company/job posting paths while retaining fixed source-host and URL security checks.
+- Preserve a Remote OK index-only row with its source ID and full text, a missing exact-posting-link gate and source-index attribution; never drop a whole feed or invent a vacancy URL.
+- Synthetic regressions cover observed URL shapes and malformed-path boundaries; no job corpus or private records are included.
+
 ## 0.3.0
 
 - Explicit employer-board readers for the official Greenhouse, Lever and Ashby public contracts.
