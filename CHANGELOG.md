@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 — 2026-10-10
+
+- Paired aware Freelancer activity-window arguments, fixed native epoch filters, returned-update verification and separate exact submission-window classification without dropping rows or changing offsets.
+- Missing/conflicting source dates remain undetermined; activity filters and matching submission fields do not prove first-ever creation. Explicit native-filter contradictions fail closed.
+- Preserve the hourly billing-limit basis; the native default 40-hour limit is not proof of required full-time attendance.
+- Synthetic boundary, future-contradiction, privacy, cross-source and dispatch tests. Existing WUZZUF full-time model support remains available for source taxonomy reconciliation.
+
 ## 0.3.1 — 2026-10-10
 
 - Accept verified native Working Nomads numeric redirect links and Himalayas company/job posting paths while retaining fixed source-host and URL security checks.

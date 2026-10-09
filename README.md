@@ -81,6 +81,7 @@ For Himalayas, pass the actual `next_cursor` from one result into the next reque
 egypt-freelance-sources --capabilities
 egypt-freelance-sources --source freelancer --limit 20
 egypt-freelance-sources --source freelancer --limit 20 --offset 20
+egypt-freelance-sources --source freelancer --limit 100 --from-time '2026-01-01T12:00:00Z' --to-time '2026-01-03T12:00:00Z'
 egypt-freelance-sources --source freelancer --project-id 123456789
 egypt-freelance-sources --source upwork --limit 20
 egypt-freelance-sources --source upwork --cursor 'SOURCE_RETURNED_CURSOR'
@@ -88,6 +89,10 @@ egypt-freelance-sources --source upwork --project-id 123456789
 ```
 
 Project IDs are illustrative; use the identifier returned by the source. Freelancer uses anonymous active-project reads with full-description projections and returned count/offset metadata. Follow the actual `pagination.next_offset`; the example offset above illustrates syntax. Source-marked nonpublic or deleted records are excluded and recorded by ID/reason. Missing full descriptions remain an explicit evidence gate.
+
+Freelancer's optional paired aware RFC3339 `--from-time` / `--to-time` constrain **update activity**, not first creation. Freeze the requested `[start,end)` interval and repeat the exact bounds on every returned-offset page. The request uses an enclosing integer-second native interval. Returned update timestamps must fit that interval or the reader fails explicitly. Every returned public row remains intact: `time_window_screening` separately classifies matching native `submitdate` / `time_submitted` against the exact submission window. Missing, invalid or conflicting timestamps remain `undetermined`; source submission dates do not prove first-ever creation or distinguish every repost. `requested_time_window`, `source_filters` and `source_filter_verification` retain that distinction. No date option is accepted for Upwork or project details.
+
+Hourly `commitment.hours` is a billing limit, not a proven minimum attendance requirement. The [official hourly FAQ](https://www.freelancer.com/faq/topic.php?id=36) describes a default limit of 40 hours per week; [billing help](https://www.freelancer.com/support/employer/project/weekly-billing-for-hourly-projects?w=f) defines the maximum trackable hours. Read the actual brief before deciding that a project requires full-time availability.
 
 Upwork sends only two fixed read queries to its official GraphQL endpoint. Supply `UPWORK_ACCESS_TOKEN` through your local environment or secret manager after developer approval and OAuth authorization for the appropriate account. Do not put a token in a command, checked-in configuration or bug report. This package does not collect credentials, create an API application, log in, refresh tokens or bypass approval. Without a token it returns `source_limited` before making a network request. Approved-token live behavior remains unverified in this release. Review the [official approval requirements](https://support.upwork.com/hc/en-us/articles/115015857647-How-to-request-an-API-key-from-Upwork), which are separate from ordinary marketplace membership.
 

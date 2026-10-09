@@ -41,6 +41,10 @@ UPWORK_CONTENT_QUERY = """query PublicOpportunityContents($ids: [ID!]!) {
 }"""
 
 
+class NativeTimeFilterMismatch(ValueError):
+    """The source returned known activity outside the exact native envelope."""
+
+
 def source_capabilities(source: str | None = None) -> dict:
     """Return dated capability evidence, without reading accounts or credentials."""
     capabilities = {
@@ -53,6 +57,12 @@ def source_capabilities(source: str | None = None) -> dict:
             "detail_url_template": FREELANCER_API + "{numeric_project_id}/",
             "pagination": "limit_offset_with_total_count_mutable_during_enumeration",
             "full_description_projection": "full_description=true",
+            "time_filter": {
+                "arguments": "Paired aware RFC3339 from_time/to_time; requested window is [start,end).",
+                "native_parameters": "Integer epoch seconds from_time/to_time bound update activity, not original creation.",
+                "verification": "Validate returned time_updated against the native envelope; separately classify coherent submitdate/time_submitted within the exact requested window.",
+                "live_basis": "Official SDK and bounded activity-vs-submission control verified 2026-10-10.",
+            },
             "source_basis": "official_sdk_contract_and_live_public_response_2026-10-09",
             "reference": "https://github.com/freelancer/freelancer-sdk-python",
             "credentials_sent": False,
@@ -60,6 +70,7 @@ def source_capabilities(source: str | None = None) -> dict:
                 "Active-project search does not provide a complete historical market census.",
                 "Local projects and full-time commitments remain source evidence; verify compatibility.",
                 "Posted budget is client demand, not earned income or a guaranteed hourly rate.",
+                "Hourly commitment hours are a billing limit (default 40/week), not a proven minimum required workload.",
                 "Fees, identity, eligibility and payout access must be checked before any human bid.",
             ],
         },
@@ -105,6 +116,84 @@ def _integer(value: int, minimum: int, maximum: int, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise ValueError(f"{name} is outside its supported integer range")
     return value
+
+
+def _time_window(from_time: str | None, to_time: str | None) -> dict | None:
+    """Keep an exact aware window and an enclosing integer native filter.
+
+    Native search dates apply to update activity. They are not proof of a new
+    project; exact submission timestamps are classified separately, without
+    dropping rows or changing pagination counts.
+    """
+    if from_time is None and to_time is None:
+        return None
+    if from_time is None or to_time is None:
+        raise ValueError("Both aware from_time and to_time are required")
+    pattern = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})"
+    dates = []
+    for value in (from_time, to_time):
+        if (
+            not isinstance(value, str)
+            or len(value) > 128
+            or not re.fullmatch(pattern, value)
+            or value.endswith("-00:00")
+        ):
+            raise ValueError("Aware RFC3339 time required")
+        date = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if date.utcoffset() is None:
+            raise ValueError("Aware RFC3339 time required")
+        dates.append(date.astimezone(timezone.utc))
+    lower, upper = (date.timestamp() for date in dates)
+    if not 0 < lower < upper <= 253402300799:
+        raise ValueError("Positive ordered supported time window required")
+    return {
+        "start": dates[0].isoformat(),
+        "end": dates[1].isoformat(),
+        "start_inclusive": True,
+        "end_exclusive": True,
+        "native_from_time": math.floor(lower),
+        "native_to_time": math.ceil(upper),
+        "native_time_basis": "source_update_activity_not_original_creation",
+        "original_publication_semantics": "Source submission fields do not prove first-ever creation or exclude a repost of the same identity.",
+    }
+
+
+def _epoch(value: object) -> int | float | None:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or not 0 < value <= 253402300799
+    ):
+        return None
+    return value
+
+
+def _classify_time_window(listing: dict, window: dict) -> dict:
+    updated = _epoch(listing.get("time_updated_raw"))
+    if (
+        updated is not None
+        and not window["native_from_time"] <= updated <= window["native_to_time"]
+    ):
+        raise NativeTimeFilterMismatch("Returned update timestamp contradicts native time filter")
+    submitted = _epoch(listing.get("time_submitted_raw"))
+    submitdate = _epoch(listing.get("submitdate_raw"))
+    coherent = submitted is not None and submitdate is not None and submitted == submitdate
+    lower = datetime.fromisoformat(window["start"]).timestamp()
+    upper = datetime.fromisoformat(window["end"]).timestamp()
+    submission_status = (
+        ("in_window" if lower <= submitted < upper else "outside_window")
+        if coherent
+        else "undetermined"
+    )
+    return {
+        "native_activity_filter_status": "verified" if updated is not None else "undetermined",
+        "submission_time_window_status": submission_status,
+        "submission_basis": "matching_source_submitdate_and_time_submitted_epoch_seconds"
+        if coherent
+        else "source_submission_fields_missing_invalid_or_conflicting",
+        "first_ever_creation_verified": False,
+    }
 
 
 def _project_id(value: str | int) -> str:
@@ -189,6 +278,10 @@ def read_json(
     freelancer_search = freelancer_path == "active/"
     projection = {"full_description", "job_details", "location_details"}
     expected_parameters = projection | ({"limit", "offset"} if freelancer_search else set())
+    native_dates = {"from_time", "to_time"}
+    dated_search = freelancer_search and native_dates <= set(parameters)
+    if dated_search:
+        expected_parameters |= native_dates
     freelancer_parameters = set(parameters) == expected_parameters and all(
         parameters.get(name) == "true" for name in projection
     )
@@ -197,6 +290,13 @@ def read_json(
         if freelancer_parameters:
             _integer(int(parameters["limit"]), 1, 100, "limit")
             _integer(int(parameters["offset"]), 0, MAX_OFFSET, "offset")
+            if dated_search:
+                if not all(parameters[name].isdigit() for name in native_dates):
+                    raise ValueError("Integer native time bounds required")
+                lower = _integer(int(parameters["from_time"]), 1, 253402300799, "from_time")
+                upper = _integer(int(parameters["to_time"]), 1, 253402300799, "to_time")
+                if lower >= upper:
+                    raise ValueError("Native time bounds must be ordered")
     freelancer_allowed = (
         parsed.scheme == "https"
         and parsed.netloc == "www.freelancer.com"
@@ -382,6 +482,7 @@ def _freelancer_project(project: dict, expected_id: str | None = None) -> dict |
         if project.get("type") == "fixed"
         else "source_budget_unit_unverified_not_earned_income",
         "hourly_project_info": _freelancer_hourly(project.get("hourly_project_info")),
+        "hourly_commitment_basis": "source_weekly_billing_limit_not_minimum_required_hours",
         "full_time_upgrade_raw": _scalar(
             upgrades.get("fulltime") if isinstance(upgrades, dict) else None, "full-time upgrade"
         ),
@@ -399,9 +500,17 @@ def _freelancer_project(project: dict, expected_id: str | None = None) -> dict |
     }
 
 
-def parse_freelancer_page(document: dict, *, limit: int, offset: int) -> dict:
+def parse_freelancer_page(
+    document: dict,
+    *,
+    limit: int,
+    offset: int,
+    from_time: str | None = None,
+    to_time: str | None = None,
+) -> dict:
     _integer(limit, 1, 100, "limit")
     _integer(offset, 0, MAX_OFFSET, "offset")
+    window = _time_window(from_time, to_time)
     result = document.get("result") if isinstance(document, dict) else None
     if document.get("status") != "success" or not isinstance(result, dict):
         raise ValueError("Freelancer API did not return successful project results")
@@ -429,10 +538,12 @@ def parse_freelancer_page(document: dict, *, limit: int, offset: int) -> dict:
         if item is None:
             excluded.append({"id": identifier, "reason": "source_marks_nonpublic_or_deleted"})
         else:
+            if window is not None:
+                item["time_window_screening"] = _classify_time_window(item, window)
             listings.append(item)
     following = offset + len(projects)
     has_more = following < total
-    return {
+    output = {
         **_base("freelancer"),
         "listings": listings,
         "reported_total": total,
@@ -447,14 +558,50 @@ def parse_freelancer_page(document: dict, *, limit: int, offset: int) -> dict:
         },
         "limits": source_capabilities("freelancer")["limits"],
     }
+    if window is not None:
+        output["requested_time_window"] = window
+        output["source_filters"] = {
+            "active_only": True,
+            "from_time": window["native_from_time"],
+            "to_time": window["native_to_time"],
+            "time_basis": window["native_time_basis"],
+        }
+        statuses = [item["time_window_screening"] for item in listings]
+        output["source_filter_verification"] = {
+            "native_activity_timestamps_verified": sum(
+                item["native_activity_filter_status"] == "verified" for item in statuses
+            ),
+            "native_activity_timestamps_undetermined": sum(
+                item["native_activity_filter_status"] == "undetermined" for item in statuses
+            ),
+            "submission_in_window": sum(
+                item["submission_time_window_status"] == "in_window" for item in statuses
+            ),
+            "submission_outside_window": sum(
+                item["submission_time_window_status"] == "outside_window" for item in statuses
+            ),
+            "submission_undetermined": sum(
+                item["submission_time_window_status"] == "undetermined" for item in statuses
+            ),
+            "all_rows_retained_pagination_counts_unchanged": True,
+            "provider_echoed_applied_filters": False,
+            "first_ever_creation_verified": False,
+        }
+    return output
 
 
 def read_freelancer_page(
-    limit: int = 20, offset: int = 0, *, transport: Callable | None = None
+    limit: int = 20,
+    offset: int = 0,
+    *,
+    transport: Callable | None = None,
+    from_time: str | None = None,
+    to_time: str | None = None,
 ) -> dict:
     try:
         _integer(limit, 1, 100, "limit")
         _integer(offset, 0, MAX_OFFSET, "offset")
+        window = _time_window(from_time, to_time)
         params = {
             "limit": limit,
             "offset": offset,
@@ -462,9 +609,26 @@ def read_freelancer_page(
             "job_details": "true",
             "location_details": "true",
         }
+        if window is not None:
+            params.update(from_time=window["native_from_time"], to_time=window["native_to_time"])
         url = FREELANCER_API + "active/?" + urlencode(params)
-        result = parse_freelancer_page((transport or read_json)(url), limit=limit, offset=offset)
+        result = parse_freelancer_page(
+            (transport or read_json)(url),
+            limit=limit,
+            offset=offset,
+            from_time=from_time,
+            to_time=to_time,
+        )
         return {**result, "source_url": url}
+    except NativeTimeFilterMismatch:
+        return {
+            **_limited(
+                "freelancer",
+                "Returned update timestamps contradict the requested activity window; acquisition is incomplete, not zero supply.",
+            ),
+            "error_code": "native_activity_time_filter_mismatch",
+            "filter_verification_failed": True,
+        }
     except Exception:
         return _limited(
             "freelancer", "Public project request or schema validation failed; not zero supply."
@@ -689,11 +853,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--offset", type=int)
     parser.add_argument("--cursor")
     parser.add_argument("--project-id")
+    parser.add_argument("--from-time", help="Freelancer activity lower bound, aware RFC3339")
+    parser.add_argument("--to-time", help="Freelancer activity upper bound, aware RFC3339")
     arguments = parser.parse_args(argv)
     if arguments.capabilities:
         result = source_capabilities(arguments.source)
     elif arguments.source is None:
         parser.error("--source is required unless --capabilities is used")
+    elif (arguments.from_time is not None or arguments.to_time is not None) and (
+        arguments.source != "freelancer" or arguments.project_id is not None
+    ):
+        parser.error("Time filters are Freelancer search-only, not Upwork or detail arguments")
     elif (arguments.source == "freelancer" and arguments.cursor is not None) or (
         arguments.source == "upwork" and arguments.offset is not None
     ):
@@ -705,7 +875,12 @@ def main(argv: list[str] | None = None) -> int:
             read_freelancer_detail if arguments.source == "freelancer" else read_upwork_detail
         )(arguments.project_id)
     elif arguments.source == "freelancer":
-        result = read_freelancer_page(arguments.limit, arguments.offset or 0)
+        result = read_freelancer_page(
+            arguments.limit,
+            arguments.offset or 0,
+            from_time=arguments.from_time,
+            to_time=arguments.to_time,
+        )
     else:
         result = read_upwork_page(arguments.limit, arguments.cursor)
     json.dump(result, sys.stdout, ensure_ascii=False)

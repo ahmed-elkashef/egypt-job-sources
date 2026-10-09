@@ -101,6 +101,145 @@ def upwork_page(nodes=None, total=2, more=True, cursor="following-cursor"):
 
 
 class FreelancerTests(unittest.TestCase):
+    def test_aware_activity_window_preserves_submission_status_and_raw_continuation(self):
+        lower, upper = 1767225600, 1767312000
+        rows = [
+            project(100001, submitdate=lower + 1, time_submitted=lower + 1, time_updated=upper),
+            project(
+                100002, submitdate=lower - 10, time_submitted=lower - 10, time_updated=lower + 20
+            ),
+            project(100003, submitdate=upper + 1, time_submitted=upper + 1, time_updated=upper + 1),
+            project(100004, submitdate=None, time_submitted=None, time_updated=None),
+            project(
+                100005, submitdate=lower + 2, time_submitted=lower + 3, time_updated=lower + 30
+            ),
+        ]
+        seen = []
+
+        def transport(url):
+            seen.append(parse_qs(urlsplit(url).query))
+            return freelancer_page(rows, total=8)
+
+        result = freelance.read_freelancer_page(
+            5,
+            0,
+            transport=transport,
+            from_time="2026-01-01T02:00:00.500000+02:00",
+            to_time="2026-01-02T00:00:00.500000Z",
+        )
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(seen[0]["from_time"], [str(lower)])
+        self.assertEqual(seen[0]["to_time"], [str(upper + 1)])
+        self.assertEqual(result["pagination"]["next_offset"], 5)
+        self.assertEqual(result["returned_count"], 5)
+        self.assertEqual(len(result["listings"]), 5)
+        self.assertEqual(
+            [
+                x["time_window_screening"]["submission_time_window_status"]
+                for x in result["listings"]
+            ],
+            ["in_window", "outside_window", "outside_window", "undetermined", "undetermined"],
+        )
+        verified = result["source_filter_verification"]
+        self.assertEqual(verified["native_activity_timestamps_verified"], 4)
+        self.assertEqual(verified["native_activity_timestamps_undetermined"], 1)
+        self.assertEqual(verified["submission_undetermined"], 2)
+        self.assertFalse(verified["provider_echoed_applied_filters"])
+        self.assertFalse(verified["first_ever_creation_verified"])
+        self.assertIn("not_minimum", result["listings"][0]["hourly_commitment_basis"])
+        self.assertNotIn("DROP_ME", json.dumps(result))
+
+    def test_update_activity_contradiction_fails_closed_including_future_window(self):
+        for bounds in [
+            ("2026-01-03T00:00:00Z", "2026-01-05T00:00:00Z"),
+            ("2030-01-01T00:00:00Z", "2030-01-03T00:00:00Z"),
+        ]:
+            result = freelance.read_freelancer_page(
+                from_time=bounds[0], to_time=bounds[1], transport=lambda url: freelancer_page()
+            )
+            self.assertEqual(result["status"], "source_limited")
+            self.assertNotIn("listings", result)
+            self.assertNotIn("reported_total", result)
+
+    def test_half_open_submission_upper_boundary_and_activity_only_do_not_prove_creation(self):
+        value = project(submitdate=1767312000, time_submitted=1767312000)
+        result = freelance.parse_freelancer_page(
+            freelancer_page([value], 1),
+            limit=1,
+            offset=0,
+            from_time="2026-01-01T00:00:00Z",
+            to_time="2026-01-02T00:00:00Z",
+        )
+        self.assertEqual(
+            result["listings"][0]["time_window_screening"]["submission_time_window_status"],
+            "outside_window",
+        )
+        self.assertEqual(
+            result["source_filters"]["time_basis"], "source_update_activity_not_original_creation"
+        )
+
+    def test_time_bounds_invalid_partial_naive_or_reversed_refused_before_network(self):
+        invalid = [
+            ("2026-01-01", "2026-01-02"),
+            ("2026-01-01T00:00:00", "2026-01-02T00:00:00"),
+            ("2026-01-01T00:00:00-00:00", "2026-01-02T00:00:00Z"),
+            ("2026-01-01T00:00:00.123456789Z", "2026-01-02T00:00:00Z"),
+            ("2026-01-01T00:00:00Z", None),
+            (None, "2026-01-02T00:00:00Z"),
+            ("2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z"),
+            ("2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            (True, "2026-01-02T00:00:00Z"),
+            ("2026-02-30T00:00:00Z", "2026-03-03T00:00:00Z"),
+        ]
+        for lower, upper in invalid:
+            with self.subTest(lower=lower, upper=upper):
+                result = freelance.read_freelancer_page(
+                    from_time=lower, to_time=upper, transport=lambda url: self.fail("network")
+                )
+                self.assertEqual(result["status"], "source_limited")
+
+    def test_native_time_transport_contract_remains_fixed_host_and_search_only(self):
+        base = (
+            freelance.FREELANCER_API
+            + "active/?limit=1&offset=0&full_description=true&job_details=true&location_details=true"
+        )
+        good = base + "&from_time=1767225600&to_time=1767312000"
+        with patch.object(freelance, "build_opener") as opener:
+            response = MagicMock()
+            response.__enter__.return_value = response
+            response.geturl.return_value = good
+            response.headers.get_content_type.return_value = "application/json"
+            response.read.return_value = json.dumps(freelancer_page()).encode()
+            opener.return_value.open.return_value = response
+            self.assertEqual(freelance.read_json(good)["status"], "success")
+        for bad in [
+            base + "&from_time=1767225600",
+            base + "&from_time=1767312000&to_time=1767225600",
+            base + "&from_time=2026-01-01&to_time=2026-01-02",
+            base + "&from_time=1767225600&to_time=1767312000&countries[]=EG",
+            freelance.FREELANCER_API
+            + "100001/?full_description=true&job_details=true&location_details=true&from_time=1767225600&to_time=1767312000",
+        ]:
+            with patch.object(freelance, "build_opener") as opener, self.assertRaises(ValueError):
+                freelance.read_json(bad)
+            opener.assert_not_called()
+
+    def test_cli_date_options_reject_upwork_and_details_without_network(self):
+        for args in [
+            ["--source", "upwork", "--from-time", "2026-01-01T00:00:00Z"],
+            [
+                "--source",
+                "freelancer",
+                "--project-id",
+                "100001",
+                "--from-time",
+                "2026-01-01T00:00:00Z",
+            ],
+        ]:
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as failure:
+                freelance.main(args)
+            self.assertEqual(failure.exception.code, 2)
+
     def test_search_is_unfiltered_public_fixed_host_and_real_full_description(self):
         seen = []
 
