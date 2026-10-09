@@ -1,0 +1,8 @@
+include LICENSE
+include README.md
+include CONTRIBUTING.md
+include CHANGELOG.md
+include ACKNOWLEDGMENTS.md
+include SOURCE_POLICY.md
+include upstream-references.json
+recursive-include tests *.py
