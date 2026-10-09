@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "egypt-job-sources"
-version = "0.2.0"
+version = "0.3.0"
 description = "Read-only Egypt boards, worldwide remote feeds and freelance client-project acquisition"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,7 @@ egypt-job-sources = "egypt_job_sources.sources:main"
 egypt-job-capture = "egypt_job_sources.capture:main"
 egypt-remote-sources = "egypt_job_sources.remote:main"
 egypt-freelance-sources = "egypt_job_sources.freelance:main"
+egypt-ats-sources = "egypt_job_sources.ats:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

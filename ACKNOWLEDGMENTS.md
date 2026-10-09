@@ -86,3 +86,7 @@ included in these releases. Test payloads are synthetic.
 Access and data reuse remain subject to the source's terms, rate limits and
 applicable rights. See [SOURCE_POLICY.md](SOURCE_POLICY.md). There is no
 affiliation with or endorsement by any source platform.
+
+## Employer-board documentation added in 0.3.0
+
+The independent Greenhouse, Lever and Ashby readers use the providers' public documentation: [Greenhouse Job Board API](https://docs.greenhouse.io/job-board.html), [Lever Postings API](https://github.com/lever/postings-api), and [Ashby Public Job Posting API](https://developers.ashbyhq.com/docs/public-job-posting-api). No third-party ATS implementation is copied or bundled. Provider documentation and vacancy-content rights remain separate from this project's MIT code license.

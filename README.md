@@ -4,6 +4,20 @@ Read-only Python adapters for Egyptian vacancies, global remote-job feeds, and c
 
 This is an independently written project, **not a fork**. Upstream scraper projects were inspected as research references. See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) for attribution and provenance, and [SOURCE_POLICY.md](SOURCE_POLICY.md) for source policies and checked dates.
 
+
+### Direct employer boards
+
+The optional ATS module reads only an employer's exact confirmed board token, with no role/keyword filters. It preserves complete returned descriptions and native identifiers. These providers are not a geographic employer universe.
+
+```sh
+python -m egypt_job_sources.ats --capabilities
+python -m egypt_job_sources.ats --source greenhouse --board CONFIRMED_BOARD_TOKEN
+python -m egypt_job_sources.ats --source lever --board CONFIRMED_BOARD_TOKEN --skip 0 --limit 100
+python -m egypt_job_sources.ats --source ashby --board CONFIRMED_BOARD_TOKEN
+```
+
+Replace the placeholder with the token observed on the employer's official board. Lever continuation uses returned `next_skip`; Greenhouse/Ashby are whole-board responses. Source timestamps, hours, work-from-country eligibility and historical completeness still need review. A failed request is an explicit limitation, never an empty successful board.
+
 ## Install
 
 Python 3.11 or newer is required. From a checkout:

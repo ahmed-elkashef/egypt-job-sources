@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Explicit employer-board readers for the official Greenhouse, Lever and Ashby public contracts.
+- Retain stable posting IDs and complete native descriptions and location/model/date/compensation fields.
+- Distinguish whole-board snapshots from Lever pages and geographic/weekly coverage.
+- Failed transport or malformed payloads remain explicit limits instead of fabricated empty supply.
+- Exact board tokens, fixed trusted endpoints, and synthetic boundary/pagination/full-text checks.
+
 ## 0.2.0 — 2026-10-09
 
 - Broad Remotive, Remote OK, We Work Remotely RSS and Working Nomads snapshot adapters, preserving every returned item and full source fields without keyword or candidate filters.

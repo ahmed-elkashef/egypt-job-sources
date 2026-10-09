@@ -137,3 +137,7 @@ payloads, rather than checking in real employer descriptions or frontend bundles
 Record upstream code reuse and retain required copyright and license notices.
 Never infer that a source allows unrestricted data reuse because an independently
 written scraper has an open-source license.
+
+## Official employer boards — 0.3.0
+
+Greenhouse, Lever and Ashby are employer-specific published-job interfaces, not geographic job indexes. Use exact confirmed board tokens; never guess an employer's token from its domain. No application POST, candidate APIs, applicant profiles or internal postings are accessed. Full returned public description fields and provider timestamp semantics are preserved. Code licensing does not grant redistribution rights to job content. Public source snapshots cannot establish original frozen-interval or regional completeness. Official contracts: https://docs.greenhouse.io/job-board.html ; https://github.com/lever/postings-api ; https://developers.ashbyhq.com/docs/public-job-posting-api . Checked 9 October 2026.

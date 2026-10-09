@@ -1,3 +1,3 @@
 """Read-only public Egypt job-source adapters. No application actions."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
