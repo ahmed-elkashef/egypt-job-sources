@@ -1,12 +1,13 @@
 # Acknowledgments and provenance
 
-Thank you to the maintainers who made Egyptian job-source research easier to
-understand. These adapters and the MCP wrapper were implemented independently.
-The initial release contains no copied third-party scraper code and carries no
-upstream fork history. A reference repository was cloned for inspection; the
-public projects are independent implementations, rather than GitHub forks.
+Thank you to the maintainers who made Egyptian, global remote and client-work
+source research easier to understand. These adapters and the MCP wrapper were
+implemented independently. Releases through 0.2.0 contain no copied third-party
+connector implementation and carry no upstream fork history. One historical
+reference repository was cloned for inspection. The public projects retain
+their own source and history.
 
-## Community references
+## Egypt community references
 
 | Project and credited author | Reviewed revision | Contribution to our research |
 | --- | --- | --- |
@@ -29,10 +30,36 @@ retain the upstream copyright and full license notice, and update this provenanc
 record. Research citations alone are not a substitute for required notices on
 copied software.
 
+## Remote and client-work references added in 0.2.0
+
+The following repositories and license files were reviewed as research references. They are
+not bundled dependencies or fork parents, and no implementation was copied or
+executed. Their differing licenses govern their own code, without changing this
+independently authored project's MIT license.
+
+| Project and credited author | Reviewed revision | License and research role |
+| --- | --- | --- |
+| [Himalayas remote-jobs-api](https://github.com/Himalayas-App/remote-jobs-api), Himalayas Remote Jobs Pty Ltd | [`17ad0bd`](https://github.com/Himalayas-App/remote-jobs-api/tree/17ad0bd7e96faa689ea0b43229618eeb828cfac6) | MIT examples/docs with separate job-data conditions; official API/schema reference. |
+| [python-upwork-oauth2](https://github.com/upwork/python-upwork-oauth2), Upwork Corporation | [`9bee35b`](https://github.com/upwork/python-upwork-oauth2/tree/9bee35bdf1545051db1fc268691843332c1b9b71) | Apache-2.0; official OAuth/GraphQL research. API terms and approval remain separate. |
+| [freelancer-sdk-python](https://github.com/freelancer/freelancer-sdk-python), Freelancer.com | [`17b8969`](https://github.com/freelancer/freelancer-sdk-python/tree/17b8969d7480f3b9ea38d32e499e6c9bb3dd28b8) | LGPL-3.0 (`LICENSE` and `COPYING.LESSER`); official project endpoint/projection reference. No SDK code copied. |
+| [freelancer-mcp-server](https://github.com/godesigntech/freelancer-mcp-server), godesigntech | [`0cb2418`](https://github.com/godesigntech/freelancer-mcp-server/tree/0cb241848f0c2f3ad8d95b3fc06cf95854321b28) | MIT; project pagination, full-description and mutation-boundary review. |
+| [upwork-mcp-server](https://github.com/AbbottDevelopments/upwork-mcp-server), Abbott Developments | [`ea94b76`](https://github.com/AbbottDevelopments/upwork-mcp-server/tree/ea94b76fb30a592b4689adf2f01d29d040eb1a19) | MIT; current-schema compatibility review. Its implementation was not adopted. |
+| [contra-mcp-starter](https://github.com/alexandernevsky/contra-mcp-starter), Alexander Nevsky | [`453f3fb`](https://github.com/alexandernevsky/contra-mcp-starter/tree/453f3fb19b796421f82104444c5f06c328b8ccad) | MIT; official MCP/account-scope research. No Contra worker-inventory adapter is included. |
+| [Upwork C# SDK](https://github.com/tryAGI/Upwork), tryAGI and contributors | [`2ad1d1d`](https://github.com/tryAGI/Upwork/tree/2ad1d1d53076f3a25404f3328bf9505d8dd172d7) | MIT; marketplace/OAuth documentation review. No C# runtime or code is bundled. |
+
+Complete revisions, actual license links and research-only relationships are
+retained in [upstream-references.json](upstream-references.json). Credits do not
+claim endorsement or verified live operation of those projects.
+
 ## Public source documentation
 
 - [Himalayas Remote Jobs API](https://himalayas.app/api): official API contract and source-attribution requirements.
+- [Himalayas OpenAPI schema](https://himalayas.app/docs/openapi.json): global browse cursors and salary-period contract.
 - [Jobicy Remote Jobs API](https://github.com/Jobicy/remote-jobs-api): official cursor, taxonomy and fair-use documentation.
+- [Remotive API documentation](https://github.com/remotive-com/remote-jobs-api): public snapshot, delay and source-use policy. This README-only reference has no declared software license; no documentation text or implementation was copied.
+- [Remote OK public feed](https://remoteok.com/api), [We Work Remotely RSS policy](https://weworkremotely.com/remote-job-rss-feed) and [Working Nomads](https://www.workingnomads.com/jobs): official feed discovery and source conditions.
+- [Upwork API schema](https://www.upwork.com/developer/documentation/graphql/api/docs/index.html), [developer approval policy](https://support.upwork.com/hc/en-us/articles/115015857647-How-to-request-an-API-key-from-Upwork) and [Freelancer developer portal](https://developer.freelancer.com/): source access and fixed read-operation research.
+- [Contra's official MCP](https://contra.com/features/mcp): capability landscape reference. Available talent/admin tooling is not proof of a worker job inventory.
 - WUZZUF's public frontend resources and public pages were inspected to verify
   its current undocumented JSON:API contract. The adapter is unofficial; the
   source's [policies](https://wuzzuf.net/policies) remain applicable.
@@ -54,7 +81,7 @@ The project MIT license covers the code and documentation authored for these
 projects. It does not license job listings, client briefs, source-site assets,
 logos, employer content or third-party dependencies. No real vacancy dataset,
 browser capture, credential, private person profile or upstream source bundle is
-included in the initial release. Test payloads are synthetic.
+included in these releases. Test payloads are synthetic.
 
 Access and data reuse remain subject to the source's terms, rate limits and
 applicable rights. See [SOURCE_POLICY.md](SOURCE_POLICY.md). There is no

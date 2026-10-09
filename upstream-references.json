@@ -137,6 +137,145 @@
       "third_party_code_executed": false,
       "bundled_dependency": false,
       "fork_parent": false
+    },
+    {
+      "repository": "Himalayas-App/remote-jobs-api",
+      "repository_url": "https://github.com/Himalayas-App/remote-jobs-api",
+      "reviewed_commit": "17ad0bd7e96faa689ea0b43229618eeb828cfac6",
+      "revision_url": "https://github.com/Himalayas-App/remote-jobs-api/tree/17ad0bd7e96faa689ea0b43229618eeb828cfac6",
+      "credited_copyright_holder": "Himalayas Remote Jobs Pty Ltd",
+      "copyright_notice": "Copyright (c) 2026 Himalayas Remote Jobs Pty Ltd",
+      "license_spdx": "MIT",
+      "license_url": "https://github.com/Himalayas-App/remote-jobs-api/blob/17ad0bd7e96faa689ea0b43229618eeb828cfac6/LICENSE",
+      "license_verified_at_revision": true,
+      "relationship": "research_reference_only",
+      "research_role": "official_api_schema_and_pagination_review",
+      "cloned_for_inspection": false,
+      "copied_source_code": false,
+      "copied_files": [],
+      "third_party_code_executed": false,
+      "bundled_dependency": false,
+      "fork_parent": false,
+      "additional_source_data_terms": true,
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "repository": "upwork/python-upwork-oauth2",
+      "repository_url": "https://github.com/upwork/python-upwork-oauth2",
+      "reviewed_commit": "9bee35bdf1545051db1fc268691843332c1b9b71",
+      "revision_url": "https://github.com/upwork/python-upwork-oauth2/tree/9bee35bdf1545051db1fc268691843332c1b9b71",
+      "credited_copyright_holder": "Upwork Corporation",
+      "copyright_notice": "Copyright 2020 Upwork Corporation. All Rights Reserved.",
+      "license_spdx": "Apache-2.0",
+      "license_url": "https://github.com/upwork/python-upwork-oauth2/blob/9bee35bdf1545051db1fc268691843332c1b9b71/LICENSE",
+      "license_verified_at_revision": true,
+      "relationship": "research_reference_only",
+      "research_role": "official_oauth_and_graphql_contract_review",
+      "cloned_for_inspection": false,
+      "copied_source_code": false,
+      "copied_files": [],
+      "third_party_code_executed": false,
+      "bundled_dependency": false,
+      "fork_parent": false,
+      "additional_api_terms_url": "https://developers.upwork.com/api-tos.html"
+    },
+    {
+      "repository": "freelancer/freelancer-sdk-python",
+      "repository_url": "https://github.com/freelancer/freelancer-sdk-python",
+      "reviewed_commit": "17b8969d7480f3b9ea38d32e499e6c9bb3dd28b8",
+      "revision_url": "https://github.com/freelancer/freelancer-sdk-python/tree/17b8969d7480f3b9ea38d32e499e6c9bb3dd28b8",
+      "credited_copyright_holder": "Freelancer.com",
+      "copyright_notice": null,
+      "license_spdx": "LGPL-3.0",
+      "license_url": "https://github.com/freelancer/freelancer-sdk-python/blob/17b8969d7480f3b9ea38d32e499e6c9bb3dd28b8/LICENSE",
+      "license_verified_at_revision": true,
+      "relationship": "research_reference_only",
+      "research_role": "official_project_routes_and_full_description_projection_review",
+      "cloned_for_inspection": false,
+      "copied_source_code": false,
+      "copied_files": [],
+      "third_party_code_executed": false,
+      "bundled_dependency": false,
+      "fork_parent": false,
+      "additional_license_notice_files": [
+        "https://github.com/freelancer/freelancer-sdk-python/blob/17b8969d7480f3b9ea38d32e499e6c9bb3dd28b8/COPYING.LESSER"
+      ]
+    },
+    {
+      "repository": "godesigntech/freelancer-mcp-server",
+      "repository_url": "https://github.com/godesigntech/freelancer-mcp-server",
+      "reviewed_commit": "0cb241848f0c2f3ad8d95b3fc06cf95854321b28",
+      "revision_url": "https://github.com/godesigntech/freelancer-mcp-server/tree/0cb241848f0c2f3ad8d95b3fc06cf95854321b28",
+      "credited_copyright_holder": "godesigntech",
+      "copyright_notice": "Copyright (c) 2026 godesigntech",
+      "license_spdx": "MIT",
+      "license_url": "https://github.com/godesigntech/freelancer-mcp-server/blob/0cb241848f0c2f3ad8d95b3fc06cf95854321b28/LICENSE",
+      "license_verified_at_revision": true,
+      "relationship": "research_reference_only",
+      "research_role": "project_pagination_description_and_mutation_boundary_review",
+      "cloned_for_inspection": false,
+      "copied_source_code": false,
+      "copied_files": [],
+      "third_party_code_executed": false,
+      "bundled_dependency": false,
+      "fork_parent": false
+    },
+    {
+      "repository": "AbbottDevelopments/upwork-mcp-server",
+      "repository_url": "https://github.com/AbbottDevelopments/upwork-mcp-server",
+      "reviewed_commit": "ea94b76fb30a592b4689adf2f01d29d040eb1a19",
+      "revision_url": "https://github.com/AbbottDevelopments/upwork-mcp-server/tree/ea94b76fb30a592b4689adf2f01d29d040eb1a19",
+      "credited_copyright_holder": "Abbott Developments",
+      "copyright_notice": "Copyright (c) 2026 Abbott Developments",
+      "license_spdx": "MIT",
+      "license_url": "https://github.com/AbbottDevelopments/upwork-mcp-server/blob/ea94b76fb30a592b4689adf2f01d29d040eb1a19/LICENSE",
+      "license_verified_at_revision": true,
+      "relationship": "research_reference_only",
+      "research_role": "current_schema_compatibility_review",
+      "cloned_for_inspection": false,
+      "copied_source_code": false,
+      "copied_files": [],
+      "third_party_code_executed": false,
+      "bundled_dependency": false,
+      "fork_parent": false
+    },
+    {
+      "repository": "tryAGI/Upwork",
+      "repository_url": "https://github.com/tryAGI/Upwork",
+      "reviewed_commit": "2ad1d1d53076f3a25404f3328bf9505d8dd172d7",
+      "revision_url": "https://github.com/tryAGI/Upwork/tree/2ad1d1d53076f3a25404f3328bf9505d8dd172d7",
+      "credited_copyright_holder": "tryAGI and contributors",
+      "copyright_notice": "Copyright (c) tryAGI and contributors",
+      "license_spdx": "MIT",
+      "license_url": "https://github.com/tryAGI/Upwork/blob/2ad1d1d53076f3a25404f3328bf9505d8dd172d7/LICENSE",
+      "license_verified_at_revision": true,
+      "relationship": "research_reference_only",
+      "research_role": "marketplace_and_oauth_documentation_review",
+      "cloned_for_inspection": false,
+      "copied_source_code": false,
+      "copied_files": [],
+      "third_party_code_executed": false,
+      "bundled_dependency": false,
+      "fork_parent": false
+    },
+    {
+      "repository": "alexandernevsky/contra-mcp-starter",
+      "repository_url": "https://github.com/alexandernevsky/contra-mcp-starter",
+      "reviewed_commit": "453f3fb19b796421f82104444c5f06c328b8ccad",
+      "revision_url": "https://github.com/alexandernevsky/contra-mcp-starter/tree/453f3fb19b796421f82104444c5f06c328b8ccad",
+      "credited_copyright_holder": "Alexander Nevsky",
+      "copyright_notice": "Copyright (c) 2026 Alexander Nevsky",
+      "license_spdx": "MIT",
+      "license_url": "https://github.com/alexandernevsky/contra-mcp-starter/blob/453f3fb19b796421f82104444c5f06c328b8ccad/LICENSE",
+      "license_verified_at_revision": true,
+      "relationship": "research_reference_only",
+      "research_role": "official_mcp_and_account_scope_review",
+      "cloned_for_inspection": false,
+      "copied_source_code": false,
+      "copied_files": [],
+      "third_party_code_executed": false,
+      "bundled_dependency": false,
+      "fork_parent": false
     }
   ],
   "official_documentation": [
@@ -158,11 +297,82 @@
       "relationship": "source_access_and_material_reuse_policy",
       "api_vendor_supported": false,
       "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "himalayas",
+      "url": "https://himalayas.app/docs/openapi.json",
+      "relationship": "official_api_schema",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "remotive",
+      "url": "https://github.com/remotive-com/remote-jobs-api",
+      "relationship": "official_api_and_fair_use_documentation",
+      "data_license_inferred_from_software_license": false,
+      "reviewed_commit": "191c5048b38c480c1e0a0843d70e7fc720199cb2",
+      "software_license_verified": false,
+      "code_adopted": false
+    },
+    {
+      "source": "remoteok",
+      "url": "https://remoteok.com/api",
+      "relationship": "official_feed_and_embedded_legal_notice",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "weworkremotely",
+      "url": "https://weworkremotely.com/remote-job-rss-feed",
+      "relationship": "official_rss_and_attribution_documentation",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "workingnomads",
+      "url": "https://www.workingnomads.com/jobs",
+      "relationship": "official_site_api_link",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "workingnomads",
+      "url": "https://www.workingnomads.com/api/exposed_jobs/",
+      "relationship": "official_exposed_feed",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "workingnomads",
+      "url": "https://www.workingnomads.com/terms-and-conditions",
+      "relationship": "source_access_and_material_reuse_policy",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "freelancer",
+      "url": "https://developer.freelancer.com/",
+      "relationship": "official_api_documentation",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "upwork",
+      "url": "https://www.upwork.com/developer/documentation/graphql/api/docs/index.html",
+      "relationship": "official_graphql_api_schema_and_permissions",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "upwork",
+      "url": "https://support.upwork.com/hc/en-us/articles/115015857647-How-to-request-an-API-key-from-Upwork",
+      "relationship": "official_api_approval_and_usage_requirements",
+      "data_license_inferred_from_software_license": false
+    },
+    {
+      "source": "contra",
+      "url": "https://contra.com/features/mcp",
+      "relationship": "official_mcp_scope_documentation_not_implemented",
+      "data_license_inferred_from_software_license": false
     }
   ],
   "distribution_notes": [
-    "Referenced scraper source is not bundled or executed.",
-    "Software MIT licensing does not transfer ownership of source listings or other third-party data.",
+    "Referenced scraper, SDK, and MCP implementation source is not bundled or executed.",
+    "Research references are credited without asserting a fork or copied implementation.",
+    "The MIT license for this independently written software does not transfer ownership of source listings or other third-party data.",
     "Future upstream code reuse must preserve applicable copyright and license notices."
-  ]
+  ],
+  "contains_copied_third_party_connector_code": false
 }

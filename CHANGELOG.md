@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — 2026-10-09
+
+- Broad Remotive, Remote OK, We Work Remotely RSS and Working Nomads snapshot adapters, preserving every returned item and full source fields without keyword or candidate filters.
+- Himalayas global browse adapter with official cursor pagination, salary periods and source metadata; separate from Egypt country search.
+- Worldwide Freelancer active-project and detail reads with full descriptions, currencies, explicit pagination and public/deleted-content guards.
+- Optional approved-token Upwork marketplace search/content reader with fixed read-only GraphQL operations. Live authorized API behavior remains unverified.
+- Remote and freelance console commands, offline capability discovery and explicit source-limited errors.
+- Strict feed URLs, rejected redirects, response bounds, RSS declaration/entity guards and additional synthetic boundary tests.
+- Expanded official-source policy and pinned research credits; no third-party implementation code, live dataset or credentials added.
+
 ## 0.1.0 — 2026-10-09
 
 - Initial independent public extraction of Egypt source adapters.

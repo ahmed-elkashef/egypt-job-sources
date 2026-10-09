@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "egypt-job-sources"
-version = "0.1.0"
-description = "Read-only public Egypt job-board and freelance-project adapters with explicit source limits"
+version = "0.2.0"
+description = "Read-only Egypt boards, worldwide remote feeds and freelance client-project acquisition"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE", "ACKNOWLEDGMENTS.md"]
 authors = [{name = "Ahmed Elkashef"}]
 dependencies = ["lxml>=6,<7"]
-keywords = ["egypt", "jobs", "wuzzuf", "forasna", "mostaql", "public-data"]
+keywords = ["egypt", "jobs", "remote", "wuzzuf", "forasna", "mostaql", "freelancer", "upwork"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3",
@@ -28,6 +28,8 @@ dev = ["build>=1.2,<2", "ruff>=0.12,<1"]
 [project.scripts]
 egypt-job-sources = "egypt_job_sources.sources:main"
 egypt-job-capture = "egypt_job_sources.capture:main"
+egypt-remote-sources = "egypt_job_sources.remote:main"
+egypt-freelance-sources = "egypt_job_sources.freelance:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,6 +1,6 @@
 # Egypt Job Sources
 
-Read-only Python adapters for public Egyptian vacancies and freelance project briefs. The package preserves source descriptions, stable IDs, native pagination, and acquisition limits. It does not apply for jobs, send messages, submit bids, access applicant profiles, or decide whether a person is eligible.
+Read-only Python adapters for Egyptian vacancies, global remote-job feeds, and client project briefs. The package preserves source descriptions, stable IDs, native pagination, and acquisition limits. It does not apply for jobs, send messages, submit bids, access applicant profiles, or decide whether a person is eligible.
 
 This is an independently written project, **not a fork**. Upstream scraper projects were inspected as research references. See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) for attribution and provenance, and [SOURCE_POLICY.md](SOURCE_POLICY.md) for source policies and checked dates.
 
@@ -9,16 +9,18 @@ This is an independently written project, **not a fork**. Upstream scraper proje
 Python 3.11 or newer is required. From a checkout:
 
 ```sh
+git clone https://github.com/ahmed-elkashef/egypt-job-sources.git
+cd egypt-job-sources
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install .
 ```
 
-On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`; the environment executables are under `.venv\Scripts`. All command examples below assume that environment is active. The sole runtime dependency is `lxml>=6,<7`. No browser automation framework, credentials, or session store is required.
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`; the environment executables are under `.venv\Scripts`. All command examples below assume that environment is active. The sole runtime dependency is `lxml>=6,<7`. Public feeds and Freelancer project reads need no account credentials. Upwork is optional and requires an approved API application and an authorized token. No browser automation framework or session store is bundled. Releases distribute source and archives through GitHub; these instructions do not depend on a PyPI publication.
 
 ## Use
 
-The default inventory is broad: Egypt geography, with no role, title, keyword, seniority, or candidate-specific employment filter.
+The Egypt inventory defaults to broad geography with no role, title, keyword, seniority, or candidate-specific employment filter.
 
 ```sh
 egypt-job-sources wuzzuf
@@ -43,6 +45,40 @@ Every result is JSON. Acquisition returns `status: "ok"` or `status: "source_lim
 
 `coverage_complete` and `reviewed_by_model` remain `false`. Raw publication dates are retained; missing timezones and ambiguous original-publication semantics are never converted into assumed UTC timestamps. Empty source requirements remain empty. Remote work and contractor labels do not establish country eligibility or working hours.
 
+### Global remote feeds
+
+```sh
+egypt-remote-sources --capabilities
+egypt-remote-sources remotive
+egypt-remote-sources remoteok
+egypt-remote-sources weworkremotely
+egypt-remote-sources workingnomads
+egypt-remote-sources himalayas_global
+egypt-remote-sources himalayas_global --cursor 'SOURCE_RETURNED_CURSOR'
+```
+
+These commands acquire broad feed responses without candidate or keyword filters. Every returned item survives; descriptions are not clipped to a summary length. Original fields remain in `source_data`, with source attribution and metadata alongside them. Himalayas global uses the official browse endpoint, distinct from the `egypt-job-sources himalayas` country search.
+
+For Himalayas, pass the actual `next_cursor` from one result into the next request; do not invent offsets. Each call returns one page, at most 20 items. The other feeds are snapshots with no verified continuation contract: their `has_more` is `null`, which does not mean exhausted market supply. Source-level delays, recent-feed caps and paid inventory remain explicit limits.
+
+### Worldwide client projects
+
+```sh
+egypt-freelance-sources --capabilities
+egypt-freelance-sources --source freelancer --limit 20
+egypt-freelance-sources --source freelancer --limit 20 --offset 20
+egypt-freelance-sources --source freelancer --project-id 123456789
+egypt-freelance-sources --source upwork --limit 20
+egypt-freelance-sources --source upwork --cursor 'SOURCE_RETURNED_CURSOR'
+egypt-freelance-sources --source upwork --project-id 123456789
+```
+
+Project IDs are illustrative; use the identifier returned by the source. Freelancer uses anonymous active-project reads with full-description projections and returned count/offset metadata. Follow the actual `pagination.next_offset`; the example offset above illustrates syntax. Source-marked nonpublic or deleted records are excluded and recorded by ID/reason. Missing full descriptions remain an explicit evidence gate.
+
+Upwork sends only two fixed read queries to its official GraphQL endpoint. Supply `UPWORK_ACCESS_TOKEN` through your local environment or secret manager after developer approval and OAuth authorization for the appropriate account. Do not put a token in a command, checked-in configuration or bug report. This package does not collect credentials, create an API application, log in, refresh tokens or bypass approval. Without a token it returns `source_limited` before making a network request. Approved-token live behavior remains unverified in this release. Review the [official approval requirements](https://support.upwork.com/hc/en-us/articles/115015857647-How-to-request-an-API-key-from-Upwork), which are separate from ordinary marketplace membership.
+
+`--limit` is a page size, not a market census cap. Offset/cursor pages, moving totals, full descriptions, exact hours, permitted geography, fees and payout access must be reconciled before treating a project as usable work. A fixed project budget is not an hourly salary or earned income. The freelance CLI exits with code 2 on `source_limited`; inspect its JSON diagnostic.
+
 ## Sources and limits
 
 These observations were last validated on **2026-10-09**. Current access and markup can change. The test suite uses synthetic data and makes no live platform requests.
@@ -56,6 +92,13 @@ These observations were last validated on **2026-10-09**. Current access and mar
 | Himalayas | Public API with broad Egypt geography | Country results may include worldwide jobs; inspect each description and restrictions. Preserve source attribution and canonical links; do not export to third-party listing aggregators. |
 | Jobicy | Public remote-job API and source-returned cursors | Global moving feed, not an Egypt census; older missed supply may be unavailable. Fresh polling passes must be no more frequent than hourly; cursor pages within one pass are permitted. |
 | Mostaql | Public project listings and scoped full briefs with budget, status, and delivery duration | A budget is a whole-project posted range, not earned income; fees, payment access, client authenticity, and delivery ability remain unverified. Bids and profiles are excluded. |
+| Remotive | Official unfiltered public JSON snapshot | Public feed is delayed 24 hours. Advises at most four fresh fetches per day; no historical pagination is verified. Attribution, backlink and reuse conditions apply. |
+| Remote OK | Official JSON snapshot with a separate legal metadata object | Recent bounded feed; no verified total or continuation. Descriptions may be abbreviated. Preserve source name and followable links. |
+| We Work Remotely | Official all-category RSS | Current snapshot; no verified historical pagination. Source type/region flags can disagree with descriptions. Attribution required. |
+| Working Nomads | Official footer-linked exposed-jobs API | Public exposed subset, with no verified total/pagination. Subscription supply is broader. Data reuse restrictions remain applicable. |
+| Himalayas global | Official unfiltered browse API, using returned cursors | Maximum 20 per page, daily refresh, possible rate limiting. Preserve `salaryPeriod`, currency, restrictions and source attribution. |
+| Freelancer.com | Anonymous active-project API and numeric project details | Mutable total/offset enumeration; not complete historical supply. Local/full-time projects can occur. Budgets, currencies, description gaps and public/deleted flags are retained. |
+| Upwork | Fixed official marketplace search and content GraphQL operations | Approved API access and local authorized token required; live approved-token behavior is unverified. No saved-search RSS route, arbitrary queries or account mutations. |
 
 ## Operator browser captures
 
@@ -91,7 +134,7 @@ Stop the form with Ctrl+C. It binds only to `127.0.0.1`, requires the exact loca
 
 ## Responsible use and data boundaries
 
-The MIT license applies to this project's **code**. It does not license platform content, trademarks, or job descriptions. Review each platform's terms and applicable rules before use; permission to browse a page does not establish permission to redistribute its content. Preserve source links, notices, confidentiality flags, and original terms. Use modest sequential requests and a bounded page cap; stop on blocks or challenges. There is no evasion, proxy rotation, impersonation, login collection, or challenge bypass.
+The MIT license applies to this project's **code**. It does not license platform content, trademarks, or job descriptions. Review each platform's terms and applicable rules before use; permission to browse a page does not establish permission to redistribute its content. Preserve source links, notices, confidentiality flags, and original terms. Use modest sequential requests and a bounded development page cap; stop on blocks or challenges. Development caps never establish full source or interval coverage. There is no evasion, proxy rotation, impersonation, login collection, or challenge bypass.
 
 This repository distributes no scraped corpus, real vacancy fixtures, credentials, account configuration, personal career profiles, or applicant data. Keep captured public HTML and live result JSON local and out of Git. Raw HTML returned by a parser is untrusted data: escape or sanitize it before rendering in another application.
 
