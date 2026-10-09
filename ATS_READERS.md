@@ -27,6 +27,21 @@ marks `page_exhaustion_observed`; moving offset inventory still needs cross-page
 identity reconciliation. No native total or stable historical snapshot is
 invented. Ashby has no documented individual public detail endpoint.
 
+Lever board reads also accept repeated `--commitment 'EXACT_OBSERVED_LABEL'`
+arguments. Use one to twenty distinct nonempty labels, at most 200 characters
+each, from this verified employer board's native `categories.commitment`
+taxonomy. Values are repeated native parameters with case-sensitive OR matching;
+repeat the exact same set on every continuation. Other providers, individual
+details and capability requests refuse these filters.
+
+Filtered responses preserve full text, raw counts and offsets, with
+`source_filters` and returned-label verification. Known contradictory labels
+fail as a source limitation; missing/non-string/mixed metadata stays
+undetermined without dropping rows. Even an empty filtered terminal keeps
+`board_snapshot_complete=false`. Retain the broad board's unknown, other-label
+and contradictory full-time complement before assessing complete supply.
+No universal type vocabulary, part-time hours or country eligibility is inferred.
+
 Greenhouse returns its whole public job-post list with `content=true` and checks
 `meta.total` against its returned count. Details request pay-transparency fields,
 without application questions. Posting `id` and `internal_job_id` are separate:
@@ -61,7 +76,7 @@ hours. Do those checks after reading the full posting; do not add keyword,
 title, skill, seniority, salary or candidate filters to acquisition.
 
 Only fixed anonymous HTTPS GET endpoints are fetched. Cross-host redirects,
-extra query parameters, credentials, malformed JSON, count contradictions and
+unsupported query parameters, credentials, malformed JSON, count contradictions and
 schema failures return `source_limited` with exit code 2 and **no empty inventory
 or fabricated count**. Valid successful empty responses remain explicit `ok`
 observations for that board. The transport has a 35-second timeout and 25 MiB

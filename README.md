@@ -16,6 +16,8 @@ python -m egypt_job_sources.ats --source lever --board CONFIRMED_BOARD_TOKEN --s
 python -m egypt_job_sources.ats --source ashby --board CONFIRMED_BOARD_TOKEN
 ```
 
+Lever optionally accepts repeated `--commitment 'EXACT_OBSERVED_LABEL'` arguments (one to twenty distinct nonempty labels, at most 200 characters each). First read the broad verified board and inspect its native `categories.commitment` taxonomy; no universal labels are assumed. The [official provider contract](https://github.com/lever/postings-api) combines repeated values with case-sensitive OR matching. Repeat the exact same labels on every `next_skip` continuation. Responses retain `source_filters`, returned rows, full text and raw counts; known contradictory returned labels fail explicitly and missing/mixed commitment metadata remains undetermined. Preserve the unfiltered unknown, other-label and contradictory full-time complement before claiming supply coverage. Positive labels such as internships or fixed terms do not establish compatible hours or country eligibility. Commitment filters are refused for Greenhouse, Ashby and individual details. A filtered terminal page does not establish a whole-board snapshot.
+
 Replace the placeholder with the token observed on the employer's official board. Lever continuation uses returned `next_skip`; Greenhouse/Ashby are whole-board responses. Source timestamps, hours, work-from-country eligibility and historical completeness still need review. A failed request is an explicit limitation, never an empty successful board.
 
 ## Install

@@ -236,6 +236,145 @@ class ATSTests(unittest.TestCase):
         self.assertFalse(end["coverage_complete"])
         self.assertFalse(end["board_snapshot_complete"])
 
+    def test_lever_commitments_repeat_exact_encoded_labels_without_arbitrary_query(self):
+        labels = ["Observed part time & remote", "التزام تجريبي"]
+        url = ats.endpoint("lever", "example", skip=17, limit=50, commitments=labels)
+        self.assertIn("skip=17&limit=50&commitment=Observed+part+time+%26+remote&commitment=", url)
+        self.assertEqual(ats.validate_endpoint(url), url)
+        self.assertEqual(ats._commitments(labels), labels)
+        with self.assertRaises(ValueError):
+            ats.validate_endpoint(url + "&country=EG")
+        with self.assertRaises(ValueError):
+            ats.endpoint("lever", "example", job_id="synthetic-100", commitments=labels)
+
+    def test_invalid_or_cross_source_commitments_fail_before_transport(self):
+        forbidden = Mock(side_effect=AssertionError("Must not read"))
+        invalid = [
+            [],
+            "Contract",
+            ("Contract",),
+            [None],
+            [True],
+            [""],
+            [" "],
+            [" Contract"],
+            ["Contract\n"],
+            ["Contract", "Contract"],
+            ["x" * 201],
+            [f"Label {index}" for index in range(21)],
+        ]
+        for labels in invalid:
+            result = ats.read_board("lever", "example", commitments=labels, transport=forbidden)
+            self.assertEqual(result["status"], "source_limited")
+            self.assertNotIn("listings", result)
+        for source in ("greenhouse", "ashby"):
+            result = ats.read_board(
+                source, "example", commitments=["Contract"], transport=forbidden
+            )
+            self.assertEqual(result["status"], "source_limited")
+            self.assertNotIn("listings", result)
+        forbidden.assert_not_called()
+
+    def test_filtered_lever_preserves_components_filters_counts_and_exact_continuation(self):
+        rows = [lever_job("synthetic-100"), lever_job("synthetic-101")]
+        rows[0]["categories"]["commitment"] = "Observed A"
+        rows[1]["categories"]["commitment"] = "Observed B"
+        labels = ["Observed A", "Observed B"]
+        result = ats.parse_board(rows, "lever", "example", skip=7, limit=50, commitments=labels)
+        self.assertEqual(result["returned_count"], 2)
+        self.assertEqual(result["pagination"]["next_skip"], 9)
+        self.assertEqual(result["source_filters"]["commitments"], labels)
+        self.assertEqual(result["source_filters"]["matching"], "case_sensitive_OR")
+        self.assertEqual(result["source_filter_verification"]["commitment_matches"], 2)
+        self.assertFalse(result["board_snapshot_complete"])
+        self.assertFalse(result["coverage_complete"])
+        self.assertNotIn("reported_total", result)
+        for listing, row in zip(result["listings"], rows):
+            self.assertEqual(listing["source_data"]["descriptionPlain"], row["descriptionPlain"])
+            for text in ("Specific source requirement.", "Closing terms.", "Pay conditions."):
+                self.assertIn(text, listing["description"])
+        terminal = ats.parse_board([], "lever", "example", skip=9, limit=50, commitments=labels)
+        self.assertEqual(terminal["returned_count"], 0)
+        self.assertIsNone(terminal["pagination"]["next_skip"])
+        self.assertTrue(terminal["pagination"]["page_exhaustion_observed"])
+        self.assertEqual(terminal["source_filters"], result["source_filters"])
+        self.assertFalse(terminal["board_snapshot_complete"])
+
+    def test_missing_or_mixed_commitment_metadata_remains_undetermined_without_row_drops(self):
+        rows = [lever_job("synthetic-100"), lever_job("synthetic-101")]
+        rows[0]["categories"].pop("commitment")
+        rows[1]["categories"]["commitment"] = ["Observed A", "other"]
+        result = ats.parse_board(rows, "lever", "example", commitments=["Observed A"])
+        self.assertEqual(result["returned_count"], 2)
+        self.assertEqual(result["listed_count"], 2)
+        self.assertEqual(result["pagination"]["next_skip"], 2)
+        self.assertEqual(result["source_filter_verification"]["commitment_undetermined"], 2)
+        self.assertEqual(result["listings"][1]["employment_type_raw"], ["Observed A", "other"])
+        broad = ats.parse_board(rows, "lever", "example")
+        self.assertEqual(broad["listed_count"], 2)
+        self.assertNotIn("source_filters", broad)
+
+    def test_known_source_commitment_contradiction_is_limitation_not_empty_or_partial(self):
+        result = ats.read_board(
+            "lever", "example", commitments=["contract"], transport=lambda _: encoded([lever_job()])
+        )
+        self.assertEqual(result["status"], "source_limited")
+        self.assertEqual(result["error_code"], "native_commitment_filter_mismatch")
+        self.assertTrue(result["filter_verification_failed"])
+        self.assertNotIn("listings", result)
+        self.assertNotIn("returned_count", result)
+
+    def test_cli_repeats_commitments_only_for_board_search_without_network_on_rejection(self):
+        with patch.object(ats, "read_board", return_value={"status": "ok"}) as reader:
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    ats.main(
+                        [
+                            "--source",
+                            "lever",
+                            "--board",
+                            "example",
+                            "--skip",
+                            "9",
+                            "--limit",
+                            "50",
+                            "--commitment",
+                            "Observed A",
+                            "--commitment",
+                            "Observed B",
+                        ]
+                    ),
+                    0,
+                )
+            self.assertEqual(reader.call_args.kwargs["commitments"], ["Observed A", "Observed B"])
+            self.assertEqual(reader.call_args.kwargs["skip"], 9)
+        with patch.object(ats, "build_opener") as opener:
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+                ats.main(["--capabilities", "--commitment", "Observed A"])
+            self.assertEqual(error.exception.code, 2)
+            for source, extra in [
+                ("greenhouse", []),
+                ("ashby", []),
+                ("lever", ["--job-id", "synthetic-100"]),
+            ]:
+                with contextlib.redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(
+                        ats.main(
+                            [
+                                "--source",
+                                source,
+                                "--board",
+                                "example",
+                                "--commitment",
+                                "Observed A",
+                                *extra,
+                            ]
+                        ),
+                        2,
+                    )
+                self.assertEqual(json.loads(output.getvalue())["status"], "source_limited")
+            opener.assert_not_called()
+
     def test_lever_more_than_100_across_pages_is_not_truncated_or_duplicate(self):
         first = [lever_job(f"synthetic-{index}") for index in range(100)]
         second = [lever_job(f"synthetic-{index}") for index in range(100, 105)]

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3 — 2026-10-10
+
+- Optional Lever-only exact observed commitment labels, encoded as repeated native OR parameters.
+- Preserve complete descriptions, raw counts and returned-offset continuation; verify known commitments and retain uncertain metadata.
+- Reject malformed/cross-source/detail filters before network access; positive filters never establish whole-board or geographic coverage.
+
 ## 0.3.2 — 2026-10-10
 
 - Paired aware Freelancer activity-window arguments, fixed native epoch filters, returned-update verification and separate exact submission-window classification without dropping rows or changing offsets.

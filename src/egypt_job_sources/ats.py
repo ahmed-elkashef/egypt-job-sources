@@ -127,6 +127,29 @@ def _job_id(value, source: str) -> str:
     return value
 
 
+class NativeCommitmentFilterMismatch(ValueError):
+    """A known returned commitment contradicts the requested native OR filter."""
+
+
+def _commitments(value: list[str] | None) -> list[str] | None:
+    """Validate exact operator-observed labels, never a universal vocabulary."""
+    if value is None:
+        return None
+    if not isinstance(value, list) or not 1 <= len(value) <= 20:
+        raise ValueError("Expected one to twenty exact observed commitment labels")
+    for label in value:
+        if (
+            not isinstance(label, str)
+            or not 1 <= len(label) <= 200
+            or label != label.strip()
+            or not label.isprintable()
+        ):
+            raise ValueError("Invalid exact observed commitment label")
+    if len(set(value)) != len(value):
+        raise ValueError("Duplicate commitment label")
+    return list(value)
+
+
 def endpoint(
     source: str,
     board: str,
@@ -135,15 +158,19 @@ def endpoint(
     skip: int | None = None,
     limit: int | None = None,
     job_id: str | int | None = None,
+    commitments: list[str] | None = None,
 ) -> str:
-    """Build only documented public GET routes, with pagination instead of filters."""
+    """Build fixed GET routes and optional exact native Lever commitment labels."""
     if source not in SOURCES:
         raise ValueError("Unsupported ATS source")
     board = _board(board)
     if source != "lever" and any(value is not None for value in (region, skip, limit)):
         raise ValueError("Region and offset pagination are Lever-only")
-    if job_id is not None and (skip is not None or limit is not None):
-        raise ValueError("Posting details do not accept pagination")
+    if source != "lever" and commitments is not None:
+        raise ValueError("Commitment filters are Lever-only")
+    commitments = _commitments(commitments)
+    if job_id is not None and any(value is not None for value in (skip, limit, commitments)):
+        raise ValueError("Posting details do not accept pagination or commitment filters")
     if source == "greenhouse":
         base = f"https://boards-api.greenhouse.io/v1/boards/{board}/jobs"
         return (
@@ -164,7 +191,10 @@ def endpoint(
         return base + "/" + _job_id(job_id, source)
     skip = _integer(0 if skip is None else skip, 0, 1_000_000_000, "offset")
     limit = _integer(100 if limit is None else limit, 1, 100, "page size")
-    return base + "?" + urlencode({"mode": "json", "skip": skip, "limit": limit})
+    params = {"mode": "json", "skip": skip, "limit": limit}
+    if commitments is not None:
+        params["commitment"] = commitments
+    return base + "?" + urlencode(params, doseq=True)
 
 
 def validate_endpoint(url: str) -> str:
@@ -176,9 +206,17 @@ def validate_endpoint(url: str) -> str:
         raise ValueError("Invalid public endpoint")
     segments = parts.path.split("/")
     pairs = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True)
-    params = dict(pairs)
-    if len(params) != len(pairs):
+    scalar_pairs = [(key, value) for key, value in pairs if key != "commitment"]
+    params = dict(scalar_pairs)
+    if len(params) != len(scalar_pairs):
         raise ValueError("Duplicate endpoint parameter")
+    commitments = [value for key, value in pairs if key == "commitment"] or None
+    if commitments is not None and not (
+        parts.netloc in {"api.lever.co", "api.eu.lever.co"}
+        and segments[:3] == ["", "v0", "postings"]
+        and len(segments) == 4
+    ):
+        raise ValueError("Commitment filters require a Lever list route")
     if parts.netloc == "boards-api.greenhouse.io" and segments[:3] == ["", "v1", "boards"]:
         if len(segments) not in {5, 6} or segments[4] != "jobs":
             raise ValueError("Unsupported Greenhouse route")
@@ -198,7 +236,9 @@ def validate_endpoint(url: str) -> str:
         else:
             if set(params) != {"mode", "skip", "limit"} or params["mode"] != "json":
                 raise ValueError("Unsupported Lever query")
-            kwargs.update(skip=int(params["skip"]), limit=int(params["limit"]))
+            kwargs.update(
+                skip=int(params["skip"]), limit=int(params["limit"]), commitments=commitments
+            )
         expected = endpoint("lever", segments[3], **kwargs)
     elif parts.netloc == "api.ashbyhq.com" and segments[:3] == ["", "posting-api", "job-board"]:
         if len(segments) != 4:
@@ -207,7 +247,7 @@ def validate_endpoint(url: str) -> str:
     else:
         raise ValueError("Endpoint outside the fixed public board scope")
     if url != expected:
-        raise ValueError("Noncanonical or filtered public endpoint")
+        raise ValueError("Noncanonical or unsupported public endpoint")
     return url
 
 
@@ -510,8 +550,11 @@ def parse_board(
     region: str | None = None,
     skip: int | None = None,
     limit: int | None = None,
+    commitments: list[str] | None = None,
 ) -> dict:
-    source_url = endpoint(source, board, region=region, skip=skip, limit=limit)
+    source_url = endpoint(
+        source, board, region=region, skip=skip, limit=limit, commitments=commitments
+    )
     if source == "lever":
         rows = document
     else:
@@ -590,6 +633,29 @@ def parse_board(
         excluded_count=len(excluded),
         excluded_items=excluded,
     )
+    if commitments is not None:
+        matched, undetermined = 0, 0
+        for listing in listings:
+            value = listing["employment_type_raw"]
+            if not isinstance(value, str) or not value.strip():
+                undetermined += 1
+            elif value not in commitments:
+                raise NativeCommitmentFilterMismatch(
+                    "Returned commitment contradicts native filter"
+                )
+            else:
+                matched += 1
+        result["source_filters"] = {
+            "commitments": list(commitments),
+            "matching": "case_sensitive_OR",
+            "taxonomy_basis": "operator_observed_employer_board_labels_not_universal_classes",
+        }
+        result["source_filter_verification"] = {
+            "commitment_matches": matched,
+            "commitment_undetermined": undetermined,
+            "all_rows_retained_pagination_counts_unchanged": True,
+            "provider_echoed_applied_filters": False,
+        }
     return result
 
 
@@ -619,12 +685,34 @@ def read_board(
     region: str | None = None,
     skip: int | None = None,
     limit: int | None = None,
+    commitments: list[str] | None = None,
     transport: Callable = read,
 ) -> dict:
     try:
-        url = endpoint(source, board, region=region, skip=skip, limit=limit)
+        url = endpoint(
+            source, board, region=region, skip=skip, limit=limit, commitments=commitments
+        )
         document = _json(transport(url))
-        return parse_board(document, source, board, region=region, skip=skip, limit=limit)
+        return parse_board(
+            document,
+            source,
+            board,
+            region=region,
+            skip=skip,
+            limit=limit,
+            commitments=commitments,
+        )
+    except NativeCommitmentFilterMismatch:
+        return {
+            **_limited(
+                source,
+                board,
+                region,
+                "Returned commitments contradict the requested native filter; acquisition remains incomplete, not zero supply.",
+            ),
+            "error_code": "native_commitment_filter_mismatch",
+            "filter_verification_failed": True,
+        }
     except Exception:
         return _limited(
             source,
@@ -683,6 +771,8 @@ def source_capabilities(source: str | None = None) -> dict:
                     "lever": [
                         "No documented native total or first-publication timestamp; offsets can move as the board changes.",
                         "Continue every nonempty page using next_skip; a short page alone does not establish exhaustion.",
+                        "Optional commitments are exact case-sensitive OR labels observed on this employer board; no universal type vocabulary is assumed.",
+                        "A positive commitment filter omits unknown/mixed/other board labels; preserve that complement before claiming supply coverage or compatible hours.",
                     ],
                     "ashby": [
                         "publishedAt is when the job was last published, not guaranteed original publication.",
@@ -692,6 +782,12 @@ def source_capabilities(source: str | None = None) -> dict:
                 }[name]
             ),
         }
+        if name == "lever":
+            capabilities[name]["documentation_checked"] = "2026-10-10"
+            capabilities[name]["native_filters"] = {
+                "commitments": "Optional one to twenty exact observed labels, repeated commitment parameters with case-sensitive OR matching.",
+                "country_or_workplace_type": "Not filterable in the documented public provider contract.",
+            }
     if source is None:
         return {
             "status": "ok",
@@ -712,25 +808,33 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--skip", type=int)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--job-id")
+    parser.add_argument("--commitment", action="append", dest="commitments")
     parser.add_argument("--capabilities", action="store_true")
     args = parser.parse_args(argv)
+    if args.capabilities and args.commitments is not None:
+        parser.error("--commitment is supported only for Lever board searches")
     if args.capabilities:
         result = source_capabilities(args.source)
     elif args.source is None or args.board is None:
         parser.error("--source and --board are required unless --capabilities is used")
     elif args.job_id is not None:
-        if args.skip is not None or args.limit is not None:
+        if args.skip is not None or args.limit is not None or args.commitments is not None:
             result = _limited(
                 args.source,
                 args.board,
                 args.region,
-                "Public posting details do not accept pagination; no request made.",
+                "Public posting details do not accept pagination or commitment filters; no request made.",
             )
         else:
             result = read_detail(args.source, args.board, args.job_id, region=args.region)
     else:
         result = read_board(
-            args.source, args.board, region=args.region, skip=args.skip, limit=args.limit
+            args.source,
+            args.board,
+            region=args.region,
+            skip=args.skip,
+            limit=args.limit,
+            commitments=args.commitments,
         )
     json.dump(result, sys.stdout, ensure_ascii=False, allow_nan=False)
     sys.stdout.write("\n")
