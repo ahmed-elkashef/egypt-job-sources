@@ -41,6 +41,119 @@ from egypt_job_sources.wuzzuf import (
 
 
 class EgyptBoardReviewTests(unittest.TestCase):
+    def test_observed_internship_route_passes_cli_detail_dispatch_without_rewriting(self):
+        url = "https://wuzzuf.net/internship/abcdefghijkl-constructed-example-egypt"
+        self.assertEqual(detail_url("wuzzuf", url), url)
+        with patch(
+            "egypt_job_sources.sources.wuzzuf_api.query_detail", return_value={"status": "ok"}
+        ) as reader:
+            self.assertEqual(query("wuzzuf", url=url), {"status": "ok"})
+            reader.assert_called_once_with(url)
+        for invalid in [
+            url + "?apply=true",
+            url.replace("/internship/", "/internship/apply/"),
+            url.replace("/internship/", "/internships/"),
+        ]:
+            with self.subTest(url=invalid), self.assertRaises(ValueError):
+                detail_url("wuzzuf", invalid)
+
+    def forasna_structured_capture(self, posting):
+        body = '<h1>Constructed opportunity</h1><header data-public-source-header><time datetime="2026-10-05 07:13:21">Source clock</time></header>'
+        for name in ["تفاصيل الوظيفة", "متطلبات الوظيفة"]:
+            body += (
+                f"<section><div><h3>{name}</h3></div><p>Constructed public text only</p></section>"
+            )
+        body += '<script type="application/ld+json">' + json.dumps(posting) + "</script>"
+        return {
+            "kind": "detail",
+            "url": "https://forasna.com/job/p/constructed-100001",
+            "captured_at": "2026-10-10T00:00:00Z",
+            "html": body,
+        }
+
+    def test_forasna_structured_identity_aware_dates_pay_units_and_country_are_retained(self):
+        posting = {
+            "@type": "JobPosting",
+            "identifier": {"value": "100001"},
+            "datePosted": "2026-10-05T19:13:21+03:00",
+            "validThrough": "2026-11-03T19:13:21+02:00",
+            "employmentType": "OTHER",
+            "jobLocationType": "TELECOMMUTE",
+            "applicantLocationRequirements": {
+                "@type": "Country",
+                "name": "Constructed other country",
+                "email": "excluded",
+            },
+            "baseSalary": {
+                "currency": "EGP",
+                "value": {
+                    "minValue": 1500,
+                    "maxValue": 2500,
+                    "unitText": "MONTH",
+                    "account": "excluded",
+                },
+            },
+            "hiringOrganization": {
+                "name": "Constructed company",
+                "contactPoint": {"email": "excluded"},
+            },
+            "cookies": "excluded",
+        }
+        result = parse_browser_capture("forasna", self.forasna_structured_capture(posting))
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["source_identity_verification"], "canonical_url_id_match")
+        self.assertEqual(result["source_date_verification"]["datePosted"], "aware_source_assertion")
+        self.assertEqual(result["source_jobposting"]["baseSalary"]["value"]["unitText"], "MONTH")
+        self.assertEqual(
+            result["source_jobposting"]["applicantLocationRequirements"]["name"],
+            "Constructed other country",
+        )
+        self.assertEqual(result["source_visible_date_raw"], ["2026-10-05 07:13:21"])
+        self.assertTrue(result["source_date_conflict"])
+        self.assertNotIn("excluded", json.dumps(result["source_jobposting"]))
+        self.assertFalse(result["coverage_complete"])
+        self.assertFalse(result["reviewed_by_model"])
+
+    def test_forasna_mismatched_or_multiple_structured_ids_do_not_verify_detail(self):
+        matching = {"@type": "JobPosting", "identifier": {"value": "100001"}}
+        wrong = {"@type": "JobPosting", "identifier": {"value": "100002"}}
+        for posting in [
+            wrong,
+            [matching, wrong],
+            matching | {"url": "https://forasna.com/job/p/other-100002"},
+        ]:
+            with self.subTest(posting=posting):
+                result = parse_browser_capture("forasna", self.forasna_structured_capture(posting))
+                self.assertEqual(result["status"], "source_limited")
+
+    def test_forasna_bad_or_unknown_offset_dates_remain_original_unverified_values(self):
+        for date in ["2026-10-05 19:13:21", "2026-10-05T19:13:21-00:00", "not-a-date"]:
+            with self.subTest(date=date):
+                posting = {
+                    "@type": "JobPosting",
+                    "identifier": {"value": "100001"},
+                    "datePosted": date,
+                }
+                result = parse_browser_capture("forasna", self.forasna_structured_capture(posting))
+                self.assertEqual(result["status"], "ok")
+                self.assertEqual(result["source_jobposting"]["datePosted"], date)
+                self.assertEqual(
+                    result["source_date_verification"]["datePosted"],
+                    "missing_or_invalid_aware_timestamp",
+                )
+
+    def test_forasna_format_difference_is_not_clock_conflict_and_reversed_expiry_is_reported(self):
+        posting = {
+            "@type": "JobPosting",
+            "identifier": {"value": "100001"},
+            "datePosted": "2026-10-05T07:13:21+03:00",
+            "validThrough": "2026-10-04T07:13:21+03:00",
+        }
+        result = parse_browser_capture("forasna", self.forasna_structured_capture(posting))
+        self.assertFalse(result["source_date_conflict"])
+        self.assertTrue(result["source_date_sequence_conflict"])
+        self.assertEqual(result["source_jobposting"]["validThrough"], posting["validThrough"])
+
     def test_forasna_encoded_title_slash_keeps_both_page_records(self):
         # Synthetic Arabic title with an encoded slash in one URL segment.
         cashier = "https://forasna.com/job/p/%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1-%2F-%D9%85%D8%AB%D8%A7%D9%84-100001"

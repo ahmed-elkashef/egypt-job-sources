@@ -7,7 +7,9 @@ inspected for context, but its applicant-count filter and offset loop are not us
 from __future__ import annotations
 
 import hashlib
+import json
 import re
+from datetime import datetime
 from urllib.parse import parse_qs, quote, unquote, urlencode, urljoin, urlsplit, urlunsplit
 
 from lxml import html
@@ -129,7 +131,7 @@ def validate_board_url(source, url, detail=False):
     path = unquote(p.path)
     if detail:
         patterns = {
-            "wuzzuf": r"/jobs/p/[a-z0-9]{12}-[^/]+",
+            "wuzzuf": r"(?:/jobs/p/[a-z0-9]{12}-[^/]+|/internship/[a-z0-9]{12}-[a-z0-9-]+)",
             "forasna": r"/job/p/[^/]+-\d+",
             "arabjobs": r"/en/jobs/j/[^/]+/[^/]+/\d+",
         }
@@ -314,7 +316,146 @@ def parse_board_page(source, body, url):
     }
 
 
-def parse_board_detail(source, body):
+def _forasna_jobposting(doc, url):
+    """Retain selected public JobPosting data without account/contact fields.
+
+    Provider datePosted is a source publication assertion, not independent proof
+    of original creation or that historical/deleted supply remains available.
+    Identity must match the requested canonical detail before dates are usable.
+    """
+    postings = []
+
+    def walk(value):
+        if isinstance(value, list):
+            for child in value:
+                walk(child)
+        elif isinstance(value, dict):
+            if value.get("@type") == "JobPosting":
+                postings.append(value)
+            if "@graph" in value:
+                walk(value["@graph"])
+
+    for script in doc.xpath('//script[@type="application/ld+json"]'):
+        try:
+            walk(json.loads(script.text or ""))
+        except (json.JSONDecodeError, TypeError):
+            continue
+    if not postings:
+        return {}
+    if len(postings) != 1:
+        raise ValueError("Exactly one canonical Forasna JobPosting is required")
+    posting = postings[0]
+    identifier = posting.get("identifier")
+    native_id = identifier.get("value") if isinstance(identifier, dict) else None
+    if isinstance(native_id, bool) or not isinstance(native_id, (str, int)):
+        raise ValueError("Forasna JobPosting needs an exact numeric source identifier")
+    native_id = str(native_id)
+    if not re.fullmatch(r"\d+", native_id):
+        raise ValueError("Invalid Forasna JobPosting identifier")
+    verified = url is not None
+    if (
+        verified
+        and source_id("forasna", validate_board_url("forasna", url, detail=True)) != native_id
+    ):
+        raise ValueError("Forasna JobPosting identity differs from canonical detail URL")
+    if posting.get("url") is not None:
+        if (
+            not isinstance(posting["url"], str)
+            or source_id("forasna", validate_board_url("forasna", posting["url"], detail=True))
+            != native_id
+        ):
+            raise ValueError("Forasna structured URL contradicts its identifier")
+
+    def select(value, fields):
+        if isinstance(value, list):
+            return [select(item, fields) for item in value]
+        if not isinstance(value, dict):
+            return value if isinstance(value, (str, int, float, bool)) or value is None else None
+        return {
+            key: select(value[key], children) for key, children in fields.items() if key in value
+        }
+
+    fields = {
+        "@type": {},
+        "title": {},
+        "description": {},
+        "url": {},
+        "identifier": {"@type": {}, "name": {}, "value": {}},
+        "datePosted": {},
+        "validThrough": {},
+        "employmentType": {},
+        "hiringOrganization": {"@type": {}, "name": {}, "sameAs": {}},
+        "jobLocationType": {},
+        "applicantLocationRequirements": {"@type": {}, "name": {}},
+        "jobLocation": {
+            "@type": {},
+            "address": {
+                "@type": {},
+                "addressRegion": {},
+                "addressCountry": {},
+            },
+        },
+        "baseSalary": {
+            "@type": {},
+            "currency": {},
+            "value": {
+                "@type": {},
+                "value": {},
+                "minValue": {},
+                "maxValue": {},
+                "unitText": {},
+            },
+        },
+    }
+    retained = select(posting, fields)
+    dates = {}
+    parsed_dates = {}
+    for field in ("datePosted", "validThrough"):
+        raw = posting.get(field)
+        try:
+            if not isinstance(raw, str) or raw.endswith("-00:00"):
+                raise ValueError("Missing/unknown offset")
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if parsed.utcoffset() is None:
+                raise ValueError("Naive date")
+            parsed_dates[field] = parsed
+            dates[field] = "aware_source_assertion" if verified else "identity_unverified"
+        except ValueError:
+            dates[field] = "missing_or_invalid_aware_timestamp"
+    visible = doc.xpath("//header[@data-public-source-header]//time/@datetime")
+    if not visible:
+        visible = doc.xpath("//time/@datetime")[:1]
+    clock_conflict = None
+    if "datePosted" in parsed_dates and visible:
+        try:
+            native_clock = parsed_dates["datePosted"].replace(tzinfo=None)
+            clock_conflict = any(
+                datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+                != native_clock
+                for value in visible
+            )
+        except ValueError:
+            pass  # A missing/invalid display clock remains unknown, not a contradiction.
+    return {
+        "source_jobposting": retained,
+        "source_id": native_id,
+        "source_identity_verification": "canonical_url_id_match"
+        if verified
+        else "requested_url_missing",
+        "source_date_verification": dates,
+        "source_visible_date_raw": visible,
+        "source_date_conflict": clock_conflict,
+        "source_date_sequence_conflict": (
+            parsed_dates["validThrough"] < parsed_dates["datePosted"]
+            if set(parsed_dates) == {"datePosted", "validThrough"}
+            else None
+        ),
+        "source_date_conflict_basis": "original_display_and_structured_values_retained_no_timezone_invention",
+        "date_basis": "public_JobPosting_datePosted_source_assertion_not_independent_creation_history",
+    }
+
+
+def parse_board_detail(source, body, url=None):
     doc = html.fromstring(body)
     headings = doc.xpath("//h2|//h3|//div[contains(@class,'panel-heading')]")
     names = {
@@ -344,7 +485,7 @@ def parse_board_detail(source, body):
         raise ValueError("Both full description and requirements sections must be present")
     title_nodes = doc.xpath("//h1") or doc.xpath("//h3")
     header_nodes = doc.xpath("//header[@data-public-source-header]")
-    return {
+    result = {
         "title": clean_text(title_nodes[0]) if title_nodes else None,
         "source_header_text": clean_text(header_nodes[0]) if header_nodes else None,
         "source_notice": [clean_text(x) for x in doc.xpath("//footer[@data-source-notice]")],
@@ -357,3 +498,6 @@ def parse_board_detail(source, body):
         "description_basis": "source_description_and_requirements_sections_not_yet_reviewed",
         "date_basis": "source_date_timezone_and_original_publication_must_be_verified",
     }
+    if source == "forasna":
+        result.update(_forasna_jobposting(doc, url))
+    return result

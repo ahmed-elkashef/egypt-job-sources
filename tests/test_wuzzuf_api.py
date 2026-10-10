@@ -120,6 +120,28 @@ class WuzzufApiTests(unittest.TestCase):
         self.assertNotIn("listings", result)
         self.assertFalse(result["coverage_complete"])
 
+    def test_provider_cooldown_headers_retained_without_authentication_headers(self):
+        failure = urllib.error.HTTPError(
+            w.API_BASE,
+            429,
+            "Too Many Requests",
+            {
+                "Retry-After": "120",
+                "Date": "Sat, 10 Oct 2026 00:30:00 GMT",
+                "Set-Cookie": "private",
+            },
+            None,
+        )
+        with patch.object(w, "read_json", side_effect=failure):
+            result = w.query_page(16)
+        failure.close()
+        self.assertEqual(result["http_status"], 429)
+        self.assertEqual(result["retry_after_raw"], "120")
+        self.assertEqual(result["http_response_headers"]["Retry-After"], "120")
+        self.assertNotIn("Set-Cookie", result["http_response_headers"])
+        self.assertNotIn("listings", result)
+        self.assertFalse(result["coverage_complete"])
+
     def test_transport_timeout_fits_three_request_page_budget(self):
         endpoint = w.api_url("job", {"filter[slug]": "abcdefghijkl-example-egypt"})
         with patch.object(w.urllib.request, "build_opener") as builder:
@@ -154,6 +176,31 @@ class WuzzufApiTests(unittest.TestCase):
         with patch.object(w, "read_json", return_value={"data": [job]}):
             result = w.query_detail(URL)
         self.assertEqual(result["status"], "source_limited")
+
+    def test_observed_internship_route_preserves_identity_text_and_exact_detail(self):
+        job = resource()
+        job["attributes"]["uri"] = "internship/syfo98xvbgg0-example-egypt"
+        job["attributes"]["workTypes"] = [{"name": "internship"}]
+        url = "https://wuzzuf.net/" + job["attributes"]["uri"]
+        result = w.parse_page(search(), {"data": [job]}, 1, "internship")
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["listings"][0]["url"], url)
+        self.assertEqual(result["listings"][0]["id"], "syfo98xvbgg0")
+        self.assertEqual(result["listings"][0]["api_id"], ID)
+        self.assertEqual(result["listings"][0]["description"], job["attributes"]["description"])
+        with patch.object(w, "read_json", return_value={"data": [job]}):
+            self.assertEqual(w.query_detail(url)["status"], "ok")
+            self.assertEqual(w.query_detail(URL)["status"], "source_limited")
+        for invalid in [
+            url.replace("/internship/", "/internships/"),
+            url.replace("/internship/", "/internship/apply/"),
+            url.replace("/internship/", "/api/internship/"),
+            url + "?token=secret",
+            url.replace("wuzzuf.net", "u:p@wuzzuf.net"),
+            url.replace("wuzzuf.net", "evil.test"),
+        ]:
+            with self.subTest(url=invalid), self.assertRaises(ValueError):
+                w.canonical_detail_url(invalid)
 
     def test_native_taxonomy_requires_egypt_selected(self):
         facets = {

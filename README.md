@@ -138,6 +138,8 @@ The capture JSON must contain exactly four fields:
 
 Use `kind: "detail"` for a full public vacancy. HTML is parsed as data; scripts are not executed. The supplied capture is operator evidence, not independent proof of browser provenance.
 
+Forasna details retain the canonical public `JobPosting` JSON-LD through a strict job-field allowlist. The parser checks its native identifier against the requested detail URL, preserves aware `datePosted`/`validThrough`, employment type, applicant country requirements and salary currency/range/unit, and keeps the original visible date. A different visible clock or reversed expiry remains an explicit conflict; malformed, naïve or unknown-offset dates stay unverified. These are provider assertions, not independent original-creation/history, part-time-hour or Egypt-eligibility proof. No executable scripts, account data or contact fields are collected.
+
 Parse a local capture without fetching a source:
 
 ```sh
@@ -174,3 +176,11 @@ CI runs offline parser and boundary tests on Python 3.11, 3.12, and 3.13. See [C
 ### Source-provided job links
 
 Remote feed descriptions are preserved independently of link completeness. Working Nomads may supply its native numeric `/job/go/` redirect link, which is retained without fetching its outbound destination. Himalayas may identify postings through `/companies/{company}/jobs/{posting}`. A Remote OK record that supplies only the generic board index keeps its stable ID and full text but has no exact posting URL; its explicit gate must be resolved before treating it as a verified application opportunity. Attribution to a source index is labeled separately. Foreign, credential-bearing, queried, fragmented and malformed links remain invalid.
+
+### Complete native public APIs
+
+`egypt-public-api-sources arbeitnow --page 1` preserves all native rows and full HTML descriptions, including actual continuation. `themuse --testing --page 0` is a bounded anonymous capability probe only. [The Muse official API](https://www.themuse.com/developers/api/v2) requires registered app credentials beyond testing: 500 anonymous tests/hour,3600 registered requests/hour. Store its key only in `THEMUSE_API_KEY`; no key or credential-bearing transport URL is returned. [Arbeitnow](https://www.arbeitnow.com/blog/job-board-api) exposes moving pages, not a frozen historical corpus; no numeric rate allowance is established. Observe actual HTTP 429/cooldown headers.
+
+Pass `--next-url` only the exact returned continuation, never alongside `--page`. Fixed API host/path/query validation rejects arbitrary URLs. Full descriptions remain source-owned content; original-publication semantics, worker geography and work-model fit require separate verification.
+
+Long native HTML bodies are serialized once in `description`. `source_data` retains every other native field; `source_description_field` identifies the original key. Adding that key/body back reconstructs the complete native row without clipping. This avoids redundant payloads exceeding common MCP buffers.

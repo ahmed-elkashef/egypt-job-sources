@@ -83,9 +83,19 @@ def canonical_detail_url(url: str) -> tuple[str, str]:
         or parsed.password
     ):
         raise ValueError("Expected a canonical public WUZZUF job URL")
-    prefix = "/jobs/p/"
-    if not parsed.path.startswith(prefix):
-        raise ValueError("Expected /jobs/p/<source-slug>")
+    # Native internship resources were observed on 10 October 2026 under
+    # /internship/<the same 12-character public ID>-slug. Preserve that actual
+    # route rather than constructing a nonexistent /jobs/p/ mirror.
+    prefix = next(
+        (
+            candidate
+            for candidate in ("/jobs/p/", "/internship/")
+            if parsed.path.startswith(candidate)
+        ),
+        None,
+    )
+    if prefix is None:
+        raise ValueError("Expected /jobs/p/<source-slug> or /internship/<source-slug>")
     slug = parsed.path[len(prefix) :]
     if not SLUG.fullmatch(slug):
         raise ValueError("Invalid WUZZUF source slug")
@@ -370,6 +380,26 @@ def base_result(url: str) -> dict:
     }
 
 
+def acquisition_failure(error: Exception) -> dict:
+    """Retain provider cooldown evidence without logging cookies or credentials."""
+    result = {"status": "source_limited", "error": str(error)[:300]}
+    if isinstance(error, urllib.error.HTTPError):
+        result["http_status"] = error.code
+        result["http_response_headers"] = {
+            key: value
+            for key in (
+                "Retry-After",
+                "Date",
+                "RateLimit-Limit",
+                "RateLimit-Remaining",
+                "RateLimit-Reset",
+            )
+            if (value := error.headers.get(key)) is not None
+        }
+        result["retry_after_raw"] = error.headers.get("Retry-After")
+    return result
+
+
 def query_taxonomy() -> dict:
     """Observe current country scope and every source-native employment facet."""
     body = {"query": "", "searchFilters": {"country": ["Egypt"]}}
@@ -415,7 +445,7 @@ def query_page(page: int = 1, work_model: str | None = None) -> dict:
                 result["issues"].append("requested_work_model_absent_from_native_taxonomy")
         return result
     except (ValueError, KeyError, TypeError, AttributeError, OSError) as error:
-        result.update(status="source_limited", error=str(error)[:300])
+        result.update(acquisition_failure(error))
         return result
 
 
@@ -436,5 +466,5 @@ def query_detail(public_url: str) -> dict:
         result.update(status="ok", snapshot_status="source_detail_snapshot", **job)
         return result
     except (ValueError, KeyError, TypeError, AttributeError, OSError) as error:
-        result.update(status="source_limited", error=str(error)[:300])
+        result.update(acquisition_failure(error))
         return result

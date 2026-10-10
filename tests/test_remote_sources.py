@@ -379,10 +379,9 @@ class RemoteSourcesTests(unittest.TestCase):
                 with self.subTest(source=source, url=url), self.assertRaises(ValueError):
                     remote._listing_url(url, source)
 
-    def test_himalayas_missing_stalled_invalid_cursor_and_bad_counts_fail(self):
+    def test_himalayas_stalled_invalid_cursor_and_bad_counts_fail(self):
         data = json.loads(himalayas_feed())
         variants = [
-            {k: v for k, v in data.items() if k != "nextCursor"},
             {**data, "nextCursor": "prior"},
             {**data, "nextCursor": "https://evil.test"},
             {**data, "limit": 100},
@@ -392,6 +391,34 @@ class RemoteSourcesTests(unittest.TestCase):
         for variant in variants:
             with self.subTest(variant=variant), self.assertRaises(ValueError):
                 remote.parse_snapshot("himalayas_global", json.dumps(variant), "prior")
+
+    def test_himalayas_documented_omitted_cursor_accepts_nonempty_terminal_page(self):
+        data = json.loads(himalayas_feed())
+        del data["nextCursor"]
+        result = remote.parse_snapshot("himalayas_global", json.dumps(data), "prior")
+        self.assertEqual(result["returned_count"], 1)
+        self.assertIsNone(result["next_cursor"])
+        self.assertFalse(result["has_more"])
+        self.assertEqual(result["source_metadata"], {k: v for k, v in data.items() if k != "jobs"})
+
+    def test_himalayas_documented_omitted_cursor_accepts_empty_final_page(self):
+        data = json.loads(himalayas_feed())
+        del data["nextCursor"]
+        data["jobs"] = []
+        result = remote.query("himalayas_global", "prior", fetch=lambda url: json.dumps(data))
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["returned_count"], 0)
+        self.assertFalse(result["has_more"])
+        self.assertFalse(result["coverage_complete"])
+        self.assertFalse(result["reviewed_by_model"])
+
+    def test_himalayas_missing_cursor_does_not_accept_empty_positive_initial_feed(self):
+        data = json.loads(himalayas_feed())
+        del data["nextCursor"]
+        data["jobs"] = []
+        result = remote.query("himalayas_global", fetch=lambda url: json.dumps(data))
+        self.assertEqual(result["status"], "source_limited")
+        self.assertNotIn("listings", result)
 
     def test_himalayas_empty_initial_feed_with_positive_total_is_source_limited(self):
         data = {**json.loads(himalayas_feed(None)), "jobs": []}

@@ -200,7 +200,7 @@ def detail_url(source: str, url: str) -> str:
 
 def parse_detail(source: str, body: str, url: str | None = None) -> dict:
     if source in BOARD_URLS:
-        return parse_board_detail(source, body)
+        return parse_board_detail(source, body, url)
     if source == "mostaql":
         return parse_mostaql_detail(body, url)
     doc = html.fromstring(body)
@@ -389,7 +389,7 @@ def parse_browser_capture(source: str, capture: dict) -> dict:
             raise ValueError("Browser capture must contain bounded public HTML")
         result.update(requested_url=url, observed_at=observed.isoformat())
         result.update(
-            parse_detail(source, body) if kind == "detail" else parse_page(source, body, url)
+            parse_detail(source, body, url) if kind == "detail" else parse_page(source, body, url)
         )
         if source == "forasna" and kind == "page":
             result["limits"].append(

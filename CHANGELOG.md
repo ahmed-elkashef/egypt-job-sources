@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.4 — 2026-10-10
+
+- Forasna narrow JobPosting reconciliation: exact source identity, aware timestamps, native salary units and applicant-country requirements; report visible-clock contradictions.
+- WUZZUF verified canonical internship URL support and safe rate/cooldown headers.
+- Himalayas official omitted terminal nextCursor is exhausted; present invalid/stalled cursors remain errors.
+- Serialize complete native HTML once with exact native-row reconstruction, avoiding duplicate-body buffer pressure.
+- Complete-body Arbeitnow/The Muse adapters preserve all native rows, exact pagination and descriptions; registered Muse access required beyond bounded testing. Safe errors retain no credential-bearing URL.
+
 ## 0.3.3 — 2026-10-10
 
 - Optional Lever-only exact observed commitment labels, encoded as repeated native OR parameters.

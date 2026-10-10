@@ -333,9 +333,11 @@ def parse_snapshot(source: str, body: bytes | str, cursor: str | None = None) ->
                 limit = _count(data.get("limit"), "page size")
                 if limit != 20 or len(rows) > limit or reported_total < len(rows):
                     raise ValueError("Unexpected page size or count")
-                if "nextCursor" not in data:
-                    raise ValueError("Cursor continuation field is absent")
-                next_cursor = data["nextCursor"]
+                # The official OpenAPI contract omits nextCursor on the last
+                # page. A present invalid or stalled cursor still fails below;
+                # the omission is a terminal current-feed page, not historical
+                # or candidate-review completion.
+                next_cursor = data.get("nextCursor")
                 if cursor is None and not rows and reported_total > 0:
                     raise ValueError("Initial feed is empty despite a positive total")
                 if next_cursor is not None:
