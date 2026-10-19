@@ -34,13 +34,28 @@ redistribution and public or commercial reuse. Preserve its source notices and
 keep acquired materials private. The release contains independently authored
 code and synthetic tests, with no WUZZUF listing dataset or frontend assets.
 
-### Forasna, ArabJobs, Bayt and Mostaql
+### Forasna, ArabJobs, Tanqeeb, Akhtaboot, Bayt and Mostaql
 
 These adapters parse public source pages. Access may be blocked or changed, and
 the project makes no claim that a site's content is open licensed. Source terms,
 content rights and restrictions remain applicable. Forasna currently requires
 an authorized browser DOM capture when ordinary HTTP is denied; that fallback
 does not broaden access permission.
+
+Tanqeeb's [public Egypt source](https://egypt.tanqeeb.com/) exposes native
+employment controls, but its Next links omit selected model state. The adapter
+requires exact selected public DOM evidence and native continuation rather than
+inventing an undocumented endpoint or exporting a browser session. Preserve the
+source's [privacy policy](https://egypt.tanqeeb.com/privacy-policy) and
+[disclaimer](https://egypt.tanqeeb.com/static_pages/view/Disclaimer); no acquired
+content is open licensed by this package.
+
+Akhtaboot's [exact Egypt route](https://www.akhtaboot.com/en/egypt/jobs) was
+anonymously readable during bounded 19 October 2026 diagnostics, after an earlier
+denial. Its explicit current Egypt empty state is distinct from global country
+counts, a loading shell, removed history or a failure. Review its
+[terms](https://www.akhtaboot.com/en/terms). Public access is not a promise of
+continuous availability or permission to redistribute employer descriptions.
 
 ### Himalayas
 

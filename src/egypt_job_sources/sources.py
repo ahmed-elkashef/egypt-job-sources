@@ -313,6 +313,10 @@ def query(
             else page_url(source, page, cursor, work_model)
         )
     )
+    if continuation_url and source != "wuzzuf" and work_model is not None:
+        expected = board_page_url(source, work_model=work_model)
+        if filter_signature(source, requested) != filter_signature(source, expected):
+            raise ValueError("Continuation work model disagrees with requested partition")
     if source == "wuzzuf":
         if taxonomy:
             result = wuzzuf_api.base_result(wuzzuf_api.public_page_url())
@@ -434,6 +438,11 @@ def crawl_board(source, max_pages=2, work_model=None, fetch=None, delay=1.0):
         if response.get("requested_url") != url:
             stop = "unexpected_page_response"
             break
+        if response.get("native_empty_state_verified") is True and response.get("listings") == []:
+            native_terminal_verified = True
+            stop = "source_scoped_empty_state_verified"
+            url = None
+            break
         fingerprint = response.get("page_fingerprint")
         if not fingerprint or fingerprint in fingerprints:
             stop = "repeated_or_unverified_page"
@@ -516,6 +525,8 @@ def main():
             "internship",
             "shift_based",
             "volunteering",
+            "contract_temp",
+            "consultant",
         ],
     )
     p.add_argument("--continuation-url")

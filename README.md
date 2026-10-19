@@ -44,6 +44,9 @@ egypt-job-sources wuzzuf --work-model full_time --page 2
 egypt-job-sources wuzzuf --work-model part_time --crawl --max-pages 2
 egypt-job-sources wuzzuf --taxonomy
 egypt-job-sources arabjobs --page 2
+egypt-job-sources arabjobs --work-model part_time --page 2
+egypt-job-sources forasna --work-model part_time
+egypt-job-sources akhtaboot
 egypt-job-sources himalayas --page 2
 egypt-job-sources jobicy --cursor 'SOURCE_RETURNED_CURSOR'
 ```
@@ -55,7 +58,7 @@ egypt-job-sources wuzzuf --detail-url 'https://wuzzuf.net/jobs/p/SOURCE_PUBLIC_S
 egypt-job-sources mostaql --detail-url 'https://mostaql.com/project/SOURCE_ID-SOURCE_SLUG'
 ```
 
-The placeholder URLs above must be replaced with valid source-returned URLs. Detail fetches are restricted to canonical routes on the selected board; this is not an arbitrary URL fetcher. WUZZUF models are `full_time`, `part_time`, `freelance_project` (alias `freelance`), `internship`, `shift_based`, and `volunteering`. Unsupported source/model combinations fail explicitly.
+The placeholder URLs above must be replaced with valid source-returned URLs. Detail fetches are restricted to canonical routes on the selected board; this is not an arbitrary URL fetcher. WUZZUF models are `full_time`, `part_time`, `freelance_project` (alias `freelance`), `internship`, `shift_based`, and `volunteering`. ArabJobs supports its separately verified native `full_time`, `part_time`, `contract_temp`, `consultant` and `freelance` partitions. The source-specific model is preserved across every observed continuation; IDs are not interchangeable between boards. No native weekly-date argument is claimed. Unsupported source/model combinations fail explicitly.
 
 Every result is JSON. Acquisition returns `status: "ok"` or `status: "source_limited"`. A blocked page or changed layout is a failure, never a successful empty inventory. Missing WUZZUF hydration retains the raw search ID and reports pending evidence. A capped crawl reports `partial` even when a native partition's terminal count reconciles: it still does not establish market or time-interval coverage.
 
@@ -109,6 +112,8 @@ These observations were last validated on **2026-10-09**. Current access and mar
 | WUZZUF | Public frontend JSON:API search, native facets, 15-card pages, and authoritative full descriptions | Undocumented frontend contract; not a vendor-supported developer API. Search is a read-only POST. Dates have unverified timezones. |
 | Forasna | Operator-supplied public DOM pages and full descriptions | Direct HTTP access was blocked. Hydrated Next clicks and advertised link offsets disagreed; click the visible Next control, then verify URL, active page and stable IDs. No inferred numbered-page crawler. |
 | ArabJobs | Egypt inventory pages and description/requirements sections | Older records coexist with recent listings. Same-ID canonical detail redirects are accepted; scope or ID changes are rejected. Availability is not established by acquisition. |
+| Tanqeeb | Scoped native public DOM inventory/detail captures | Anonymous HTTP was empty/gated during diagnostics. Native work-model controls are verified, but their state is absent from Next URLs; capture selected country/filter controls and use native clicks. Aggregator dates are not original employer history. |
+| Akhtaboot | Exact anonymous Egypt inventory and strict canonical public details | The current Egypt route returned an explicit scoped empty state on 19 October 2026. Nonempty provider markup was separately inspected as a diagnostic outside Egypt, not Egyptian supply. No historical completeness or always-available transport is claimed. |
 | Bayt | Egypt inventory/JobPosting parser | Live access was blocked during validation. Parser support is not a claim of current successful acquisition. |
 | Himalayas | Public API with broad Egypt geography | Country results may include worldwide jobs; inspect each description and restrictions. Preserve source attribution and canonical links; do not export to third-party listing aggregators. |
 | Jobicy | Public remote-job API and source-returned cursors | Global moving feed, not an Egypt census; older missed supply may be unavailable. Fresh polling passes must be no more frequent than hourly; cursor pages within one pass are permitted. |
@@ -139,6 +144,27 @@ The capture JSON must contain exactly four fields:
 Use `kind: "detail"` for a full public vacancy. HTML is parsed as data; scripts are not executed. The supplied capture is operator evidence, not independent proof of browser provenance.
 
 Forasna details retain the canonical public `JobPosting` JSON-LD through a strict job-field allowlist. The parser checks its native identifier against the requested detail URL, preserves aware `datePosted`/`validThrough`, employment type, applicant country requirements and salary currency/range/unit, and keeps the original visible date. A different visible clock or reversed expiry remains an explicit conflict; malformed, naïve or unknown-offset dates stay unverified. These are provider assertions, not independent original-creation/history, part-time-hour or Egypt-eligibility proof. No executable scripts, account data or contact fields are collected.
+
+The actual Forasna duty body must also be present: surviving job-category or speciality labels cannot turn a missing employer description into a successful full read.
+
+Forasna's verified `part_time` builder uses the generic inventory with the exact native `filters[country][0]=مصر` and `filters[jobType][0]=نصف يوم` controls. The capital `T` in `jobType` is significant. A half-day SEO page without the explicit country control is not equivalent. HTTP may remain blocked: use the selected public DOM capture, retain all raw cards and verify exact query/filter state after each visible Next click. Native half-day is an offered model label, not proof of actual daily/weekly hours. No source date filter is inferred.
+
+### Tanqeeb selected-state contract
+
+Tanqeeb captures use the same four-field JSON envelope. The MCP's public DOM extractor captures native `article[data-job-id]` cards and the actual pager, plus a narrow marker for visible selected country and checked controls:
+
+```html
+<section data-public-native-filters data-country="Egypt">
+  <span data-filter-name="refine[job_types][]" data-filter-value="2">Part Time</span>
+  <span data-filter-name="refine[order_by]" data-filter-value="most_recent">Most Recent</span>
+</section>
+```
+
+These are selected public source controls, never account forms, CSRF fields or hidden application state. Verified native models are All `-1`, Full Time `1`, Part Time `2`, Internship `5`, and Freelance/Project `7`. Their labels do not prove actual hours. The parser preserves all returned cards, including unknown/mixed types and contradictions. It returns a selected-control signature, `next_url:null`, the separate `observed_next_control_href`, and a native-click instruction requiring the same signature on the resulting page. Replaying the URL alone does not reproduce a work-model partition. There is no invented work-model HTTP parameter.
+
+For details, the extractor retains the exact native title and `#jobDescriptionBody` as a `data-public-job-description` section, plus allowlisted public JobPosting fields. Canonical native IDs must match any structured URL/identifier. Publication fields remain raw aggregator assertions; original employer creation, worker country, actual hours and suitability require separate evidence.
+
+Akhtaboot captures retain the exact Egypt breadcrumb and a narrow `data-public-native-filters data-country="Egypt"` marker, public card rows or the explicit no-results notice, and observed pagination. An absent card, loading shell or access challenge is a failure. Detail bodies require their complete native “Job Description and Requirements” section and a matching canonical reference number. Only source job metadata is retained; neither account panels nor application forms are exported.
 
 Parse a local capture without fetching a source:
 
@@ -184,3 +210,7 @@ Remote feed descriptions are preserved independently of link completeness. Worki
 Pass `--next-url` only the exact returned continuation, never alongside `--page`. Fixed API host/path/query validation rejects arbitrary URLs. Full descriptions remain source-owned content; original-publication semantics, worker geography and work-model fit require separate verification.
 
 Long native HTML bodies are serialized once in `description`. `source_data` retains every other native field; `source_description_field` identifies the original key. Adding that key/body back reconstructs the complete native row without clipping. This avoids redundant payloads exceeding common MCP buffers.
+
+### Native Tanqeeb control ordering
+
+A checked Part Time control is insufficient result-membership proof: changing sort last returned full-time cards while that type remained checked. The observed working sequence is newest sort first, compatible type last, wait for returned native card membership, then actual Next and another membership check. The parser preserves leakage and contradictions; consumer objective screening remains necessary. Do not restore filtered continuation from URL alone.

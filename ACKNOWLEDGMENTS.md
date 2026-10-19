@@ -66,6 +66,11 @@ claim endorsement or verified live operation of those projects.
 - Forasna, ArabJobs, Bayt and Mostaql public pages were inspected to verify URL,
   pagination and full-text boundaries. They are independent services, and their
   names and content remain owned by their respective rights holders.
+- [Tanqeeb Egypt](https://egypt.tanqeeb.com/) and
+  [Akhtaboot Egypt](https://www.akhtaboot.com/en/egypt/jobs): independently
+  inspected public source markup, native filters, canonical identities and
+  continuation/empty-state behavior for version 0.3.5. No third-party scraper
+  implementation, source-site assets or real vacancy fixtures were copied.
 
 ## Software dependencies
 

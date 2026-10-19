@@ -18,6 +18,8 @@ BOARD_URLS = {
     "wuzzuf": "https://wuzzuf.net/search/jobs",
     "forasna": "https://forasna.com/" + quote("وظائف-خالية"),
     "arabjobs": "https://www.arabjobs.com/en/jobs/search/",
+    "tanqeeb": "https://egypt.tanqeeb.com/jobs/search",
+    "akhtaboot": "https://www.akhtaboot.com/en/egypt/jobs",
 }
 WORK_MODELS = {
     "Full Time": "full_time",
@@ -40,6 +42,13 @@ WUZZUF_NATIVE_MODELS = {
     "internship",
     "shift_based",
     "volunteering",
+}
+ARABJOBS_NATIVE_MODELS = {
+    "full_time": "1",
+    "part_time": "2",
+    "contract_temp": "3",
+    "consultant": "4",
+    "freelance": "5",
 }
 
 
@@ -93,11 +102,20 @@ def canonical(url):
 
 
 def board_page_url(source, page=1, work_model=None):
+    if source in {"tanqeeb", "akhtaboot"}:
+        from .secondary import page_url
+
+        return page_url(source, page, work_model)
     if source not in BOARD_URLS or not 1 <= page <= 10000:
         raise ValueError("Unsupported board or page")
-    work_model = "freelance_project" if work_model == "freelance" else work_model
-    if work_model and (source != "wuzzuf" or work_model not in WUZZUF_NATIVE_MODELS):
-        raise ValueError("Only verified WUZZUF native work models supported")
+    if source == "wuzzuf" and work_model == "freelance":
+        work_model = "freelance_project"
+    if work_model and not (
+        (source == "wuzzuf" and work_model in WUZZUF_NATIVE_MODELS)
+        or (source == "arabjobs" and work_model in ARABJOBS_NATIVE_MODELS)
+        or (source == "forasna" and work_model == "part_time")
+    ):
+        raise ValueError("Only verified source-specific native work models supported")
     if source == "wuzzuf":
         params = {"filters[country][0]": "Egypt"}
         if work_model:
@@ -110,13 +128,21 @@ def board_page_url(source, page=1, work_model=None):
                 "Forasna page offsets are not a verified numbered contract; use the native browser Next control"
             )
         params = {}
+        if work_model:
+            params = {"filters[country][0]": "مصر", "filters[jobType][0]": "نصف يوم"}
     else:
         params = {"pageIndex": page, "filterJobCountry": "EG", "sortType": "2"}
+        if work_model:
+            params["filterJobType"] = ARABJOBS_NATIVE_MODELS[work_model]
     return BOARD_URLS[source] + ("?" + urlencode(params) if params else "")
 
 
 def validate_board_url(source, url, detail=False):
     """Keep browser imports, detail reads and continuations inside public scope."""
+    if source in {"tanqeeb", "akhtaboot"}:
+        from .secondary import validate_url
+
+        return validate_url(source, url, detail=detail)
     p = urlsplit(url)
     if (
         source not in BOARD_URLS
@@ -154,14 +180,28 @@ def validate_board_url(source, url, detail=False):
                 )
             )
         elif source == "forasna":
-            allowed = {"start"}
-            valid = path == "/وظائف-خالية"
+            allowed = {"start", "filters[country][0]", "filters[jobType][0]"}
+            valid = (
+                path == "/وظائف-خالية"
+                and ("filters[country][0]" not in q or q["filters[country][0]"] == ["مصر"])
+                and (
+                    "filters[jobType][0]" not in q
+                    or (
+                        q["filters[jobType][0]"] == ["نصف يوم"]
+                        and q.get("filters[country][0]") == ["مصر"]
+                    )
+                )
+            )
         else:
-            allowed = {"pageIndex", "filterJobCountry", "sortType"}
+            allowed = {"pageIndex", "filterJobCountry", "sortType", "filterJobType"}
             valid = (
                 path == "/en/jobs/search/"
                 and q.get("filterJobCountry") == ["EG"]
                 and q.get("sortType", ["2"]) == ["2"]
+                and (
+                    "filterJobType" not in q
+                    or q["filterJobType"][0] in ARABJOBS_NATIVE_MODELS.values()
+                )
             )
         if not valid or set(q) - allowed or any(len(v) != 1 for v in q.values()):
             raise ValueError(
@@ -174,6 +214,10 @@ def validate_board_url(source, url, detail=False):
 
 
 def filter_signature(source, url):
+    if source in {"tanqeeb", "akhtaboot"}:
+        from .secondary import filter_signature as secondary_signature
+
+        return secondary_signature(source, url)
     p = urlsplit(validate_board_url(source, url))
     q = parse_qs(p.query)
     return (
@@ -183,6 +227,10 @@ def filter_signature(source, url):
 
 
 def source_id(source, url):
+    if source in {"tanqeeb", "akhtaboot"}:
+        from .secondary import source_id as secondary_id
+
+        return secondary_id(source, url)
     validate_board_url(source, url, detail=True)
     path = unquote(urlsplit(url).path)
     return (
@@ -201,6 +249,10 @@ def field_values(card, label):
 
 
 def parse_board_page(source, body, url):
+    if source in {"tanqeeb", "akhtaboot"}:
+        from .secondary import parse_page
+
+        return parse_page(source, body, url)
     validate_board_url(source, url)
     doc = html.fromstring(body)
     if source == "wuzzuf":
@@ -246,7 +298,11 @@ def parse_board_page(source, body, url):
     for a in doc.xpath("//a[@href]"):
         href = a.get("href")
         if source == "arabjobs" and re.fullmatch(r"javascript:PagerGo\(\d+\)", href):
-            href = board_page_url(source, int(re.search(r"\d+", href).group()))
+            # Native PagerGo changes only pageIndex. Preserve the verified
+            # country/order/model partition instead of falling back to broad.
+            params = parse_qs(urlsplit(url).query)
+            params["pageIndex"] = [re.search(r"\d+", href).group()]
+            href = BOARD_URLS[source] + "?" + urlencode(params, doseq=True)
         else:
             href = canonical(urljoin(url, href))
         try:
@@ -287,6 +343,11 @@ def parse_board_page(source, body, url):
             total = int(match.group(1).replace(",", ""))
     return {
         "listings": listings,
+        "source_filters": {
+            key: values
+            for key, values in parse_qs(urlsplit(url).query, keep_blank_values=True).items()
+            if key not in {"pageIndex", "start"}
+        },
         "reported_total": total,
         "rendered_page_number": rendered_page_number,
         "url_pagination_position": current,
@@ -296,6 +357,7 @@ def parse_board_page(source, body, url):
         "next_browser_action": {
             "kind": "click_visible_next_then_verify_resulting_url_page_number_and_stable_ids",
             "label": "التالى",
+            "expected_query_filter_signature": filter_signature(source, url),
         }
         if next_control_href
         else None,
@@ -456,6 +518,10 @@ def _forasna_jobposting(doc, url):
 
 
 def parse_board_detail(source, body, url=None):
+    if source in {"tanqeeb", "akhtaboot"}:
+        from .secondary import parse_detail
+
+        return parse_detail(source, body, url)
     doc = html.fromstring(body)
     headings = doc.xpath("//h2|//h3|//div[contains(@class,'panel-heading')]")
     names = {
@@ -483,6 +549,19 @@ def parse_board_detail(source, body, url=None):
         for name in names[:2]
     ):
         raise ValueError("Both full description and requirements sections must be present")
+    description_text = sections[names[0]]["text"]
+    if source == "forasna":
+        # Category/speciality fields can survive when the employer supplied no
+        # duties. Metadata cannot stand in for the actual observed task body.
+        description_section = html.fromstring(sections[names[0]]["html"])
+        task_nodes = description_section.xpath(
+            ".//*[contains(concat(' ', normalize-space(@class), ' '), ' job-more-info ')]"
+        )
+        description_text = " ".join(clean_text(node) for node in task_nodes).strip()
+        if not description_text:
+            raise ValueError(
+                "Forasna full task description is missing; category/speciality labels are metadata"
+            )
     title_nodes = doc.xpath("//h1") or doc.xpath("//h3")
     header_nodes = doc.xpath("//header[@data-public-source-header]")
     result = {
@@ -491,9 +570,7 @@ def parse_board_detail(source, body, url=None):
         "source_notice": [clean_text(x) for x in doc.xpath("//footer[@data-source-notice]")],
         "sections": sections,
         "availability_status": "not_verified",
-        "source_description_quality": "sparse"
-        if len(sections[names[0]]["text"]) < 40
-        else "present",
+        "source_description_quality": "sparse" if len(description_text) < 40 else "present",
         "source_date_raw": doc.xpath('//*[@itemprop="datePosted"]/@content|//time/@datetime'),
         "description_basis": "source_description_and_requirements_sections_not_yet_reviewed",
         "date_basis": "source_date_timezone_and_original_publication_must_be_verified",

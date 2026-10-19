@@ -60,9 +60,12 @@ class EgyptBoardReviewTests(unittest.TestCase):
     def forasna_structured_capture(self, posting):
         body = '<h1>Constructed opportunity</h1><header data-public-source-header><time datetime="2026-10-05 07:13:21">Source clock</time></header>'
         for name in ["تفاصيل الوظيفة", "متطلبات الوظيفة"]:
-            body += (
-                f"<section><div><h3>{name}</h3></div><p>Constructed public text only</p></section>"
+            text = (
+                '<div class="job-more-info descri"><p class="job-bio">Constructed public task text only</p></div>'
+                if name == "تفاصيل الوظيفة"
+                else "<p>Constructed public requirements only</p>"
             )
+            body += f"<section><div><h3>{name}</h3></div>{text}</section>"
         body += '<script type="application/ld+json">' + json.dumps(posting) + "</script>"
         return {
             "kind": "detail",

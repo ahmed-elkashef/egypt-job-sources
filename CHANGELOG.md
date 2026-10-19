@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.5 — 2026-10-19
+
+- Add reusable Tanqeeb public DOM list/detail parsing, canonical IDs, selected native country/model signatures and safe continuation instructions when Next URLs omit selected state.
+- Add strict Akhtaboot Egypt anonymous HTTP/DOM pages and canonical details, separating the verified current scoped-empty state from unavailable/challenge responses. Nonempty provider markup diagnostics are not Egyptian market supply.
+- Add independently verified ArabJobs native work-model partitions and continuation scope checks. No inferred native weekly-date filter.
+- Add verified Forasna half-day plus explicit Egypt query controls; preserve case-sensitive native names and continuation scope rather than substituting a country-ambiguous SEO page.
+- Reconcile Forasna structured identity/date/country/pay evidence with the missing actual duty-body guard.
+- Extend immutable local capture support to both boards; add synthetic privacy, scope, empty-state, contradiction and continuation regressions. No candidate preferences or real listing corpus is distributed.
+
 ## 0.3.4 — 2026-10-10
 
 - Forasna narrow JobPosting reconciliation: exact source identity, aware timestamps, native salary units and applicant-country requirements; report visible-clock contradictions.

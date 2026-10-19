@@ -119,7 +119,7 @@ FORM = """<!doctype html><html lang=en><meta charset=utf-8>
 <p>Transfer the selected job-page capture from the authorized browser.</p>
 <small>This local handoff preserves evidence. It does not review jobs or send applications.</small>
 <form method=post action=/capture><label for=source>Source</label><select id=source name=source>
-<option value=wuzzuf>WUZZUF</option><option value=forasna>Forasna</option><option value=arabjobs>ArabJobs</option></select>
+<option value=wuzzuf>WUZZUF</option><option value=forasna>Forasna</option><option value=arabjobs>ArabJobs</option><option value=tanqeeb>Tanqeeb</option><option value=akhtaboot>Akhtaboot</option></select>
 <label for=capture>Public page capture</label><textarea id=capture name=capture required></textarea>
 <br><button type=submit>Save capture</button></form></html>"""
 
@@ -176,7 +176,7 @@ def handler_for(directory):
                 ):
                     raise ValueError("Exactly one source and public capture are required")
                 source = fields["source"][0]
-                if source not in {"wuzzuf", "forasna", "arabjobs"}:
+                if source not in {"wuzzuf", "forasna", "arabjobs", "tanqeeb", "akhtaboot"}:
                     raise ValueError("Unsupported public board")
                 capture = json.loads(fields["capture"][0])
                 result = save_capture(source, capture, directory)
